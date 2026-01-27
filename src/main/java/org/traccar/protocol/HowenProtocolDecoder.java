@@ -2253,8 +2253,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         position.set("mgBackward", revRevs);
         position.set("mgRpm", speedRpm);
         position.set("mgMixingTimeSec", mixingTimeSec);
-        LOGGER.info("CementMixer status={}, speed={}rpm, fwdRevs={}, revRevs={}, time={}s", 
-        status, speedRpm, fwdRevs, revRevs, mixingTimeSec);
+        LOGGER.info(
+            "CementMixer status={}, speed={}rpm, fwdRevs={}, revRevs={}, time={}s",
+            status, speedRpm, fwdRevs, revRevs, mixingTimeSec
+        );
     }
 
     private String toHex(ByteBuf buf) {
