@@ -1764,7 +1764,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         if (buf == null || buf.readableBytes() < 6) {
             return;
         }
-
         LOGGER.info("decodeStatusData HEX: {}", toHex(buf));
 
         Date deviceTime = applyTimeOffset(readTimestamp(buf));
@@ -2228,9 +2227,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         long fwdRevs = buf.readUnsignedIntLE();
         long revRevs = buf.readUnsignedIntLE();
         long mixingTimeSec = buf.readUnsignedIntLE();
-    
         position.set("cementMixerStatus", status);
-    
         switch (status) {
             case 0:
                 position.set("cementMixerState", "stopped");
@@ -2244,7 +2241,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             default:
                 position.set("cementMixerState", "unknown");
         }
-    
         position.set("cementMixerSpeedRpm", speedRpm);
         position.set("cementMixerFwdRevs", fwdRevs);
         position.set("cementMixerRevRevs", revRevs);
@@ -2257,8 +2253,8 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         position.set("mgBackward", revRevs);
         position.set("mgRpm", speedRpm);
         position.set("mgMixingTimeSec", mixingTimeSec);
-    
-        LOGGER.info("CementMixer status={}, speed={}rpm, fwdRevs={}, revRevs={}, time={}s", status, speedRpm, fwdRevs, revRevs, mixingTimeSec);
+        LOGGER.info("CementMixer status={}, speed={}rpm, fwdRevs={}, revRevs={}, time={}s", 
+        status, speedRpm, fwdRevs, revRevs, mixingTimeSec);
     }
 
     private String toHex(ByteBuf buf) {
@@ -2268,5 +2264,4 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         }
         return sb.toString();
     }
-    
 }
