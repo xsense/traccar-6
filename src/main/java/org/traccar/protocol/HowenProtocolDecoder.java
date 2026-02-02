@@ -2301,7 +2301,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         position.set("mgMixingTimeSec", mixingTime);
     
         LOGGER.info(
-    "Tanker decoded: flag={}, status={}, rpm={}, forward={}, reverse={}, mixingTime={}",
+            "Tanker decoded: flag={}, status={}, rpm={}, forward={}, reverse={}, mixingTime={}",
             lengthOrFlag, status, rpm, forward, reverse, mixingTime
         );
     }
