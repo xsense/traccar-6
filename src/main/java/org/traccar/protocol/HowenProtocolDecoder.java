@@ -2270,7 +2270,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             return;
         }
 
-        LOGGER.info("CementMixerStatus HEX: {}", toHex(buf));
+        LOGGER.info("TankerCustom HEX: {}", toHex(buf));
         int startIndex = buf.readerIndex();
         // ex. 0f | 00 | 0000 | 43020000 | 00000000 | 00000000
         // 1) skip length / flag (0f) --> 0f (15)
