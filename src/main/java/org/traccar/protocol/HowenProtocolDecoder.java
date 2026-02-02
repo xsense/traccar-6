@@ -2271,18 +2271,16 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         }
 
         LOGGER.info("CementMixerStatus HEX: {}", toHex(buf));
-    
         int startIndex = buf.readerIndex();
-    
         // ex. 0f | 00 | 0000 | 43020000 | 00000000 | 00000000
         // 1) skip length / flag (0f) --> 0f (15)
         int lengthOrFlag = buf.readUnsignedByte();
         // 2) status --> 00
-        int status = buf.readUnsignedByte(); 
+        int status = buf.readUnsignedByte();
         // 3) rpm (uint16 LE) --> 0000
         int rpm = buf.readUnsignedShortLE();
         // 4) forward (uint32 LE) --> 43020000 -> 579
-        long forward = buf.readUnsignedIntLE(); // 
+        long forward = buf.readUnsignedIntLE();
         // 5) reverse (uint32 LE) --> 00000000 -> 0
         long reverse = buf.readUnsignedIntLE();
         // 6) mixing time / reserved (uint32 LE)  --> 00000000 -> 0
@@ -2303,7 +2301,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         position.set("mgMixingTimeSec", mixingTime);
     
         LOGGER.info(
-            "Tanker decoded: flag={}, status={}, rpm={}, forward={}, reverse={}, mixingTime={}",
+    "Tanker decoded: flag={}, status={}, rpm={}, forward={}, reverse={}, mixingTime={}",
             lengthOrFlag, status, rpm, forward, reverse, mixingTime
         );
     }
