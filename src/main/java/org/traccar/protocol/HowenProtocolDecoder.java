@@ -158,14 +158,14 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         if (effectiveSession != null && !effectiveSession.isEmpty()) {
             statusJson.add("ss", effectiveSession);
         }
-        statusJson.add("ct", 15);
+        statusJson.add("ct", 16777215);
         JsonObject statusPayload = statusJson.build();
 
         JsonObjectBuilder alarmJson = Json.createObjectBuilder();
         if (effectiveSession != null && !effectiveSession.isEmpty()) {
             alarmJson.add("ss", effectiveSession);
         }
-        alarmJson.add("ct", 45);
+        alarmJson.add("ct", 16777215);
         JsonObject alarmPayload = alarmJson.build();
 
         LOGGER.info("howen subscription request: device={}, session={}, statusType=0x4040(ct={}), "
