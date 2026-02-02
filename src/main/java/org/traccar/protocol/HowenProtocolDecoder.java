@@ -1818,8 +1818,20 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         }
 
         // Tanker custom (16 bytes)
+        // if (buf.readableBytes() >= 16) {
+        //     decodeTankerCustom(position, buf);
+        // }
+        // Tanker custom (16 bytes) - ใช้ 16 bytes สุดท้าย
         if (buf.readableBytes() >= 16) {
-            decodeTankerCustom(position, buf);
+            // 16 bytes สุดท้าย
+            int tankerStartIndex = buf.writerIndex() - 16;
+            // สร้าง slice
+            ByteBuf tankerBuf = buf.slice(tankerStartIndex, 16);
+            LOGGER.info(
+                "Tanker custom slice: readerIndex={}, writerIndex={}, length={}",
+                tankerBuf.readerIndex(), tankerBuf.writerIndex(), tankerBuf.readableBytes()
+            );
+            decodeTankerCustom(position, tankerBuf);
         }
 
         // Detect offline batch data based on time gap (using BaseProtocolDecoder helper)
