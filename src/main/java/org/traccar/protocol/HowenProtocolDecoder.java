@@ -2285,7 +2285,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         long reverse = buf.readUnsignedIntLE();
         // 6) mixing time / reserved (uint32 LE)  --> 00000000 -> 0
         long mixingTime = buf.readUnsignedIntLE();
-    
         // --- set ค่าเข้า Position ---
         position.set("tanker.status", status);
         position.set("tanker.rpm", rpm);
@@ -2299,7 +2298,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         position.set("mgBackward", reverse);
         position.set("mgRpm", rpm);
         position.set("mgMixingTimeSec", mixingTime);
-    
         LOGGER.info(
             "Tanker decoded: flag={}, status={}, rpm={}, forward={}, reverse={}, mixingTime={}",
             lengthOrFlag, status, rpm, forward, reverse, mixingTime
