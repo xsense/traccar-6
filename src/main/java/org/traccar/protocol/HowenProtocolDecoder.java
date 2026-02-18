@@ -353,9 +353,11 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set("alcoholDetected", true);
                 if (json.containsKey("det")) {
                     JsonObject detail = json.getJsonObject("det");
-                    if (detail.containsKey("val")) {
+                    LOGGER.info("Alcohol alarm detail: {}", detail.toString());
+                    position.set("alcohol", detail.toString());
+                    if (detail.containsKey("cur")) {
                         try {
-                            double alcoholLevel = detail.getJsonNumber("val").doubleValue();
+                            double alcoholLevel = detail.getJsonNumber("cur").doubleValue();
                             position.set("alcoholLevel", alcoholLevel);
                         } catch (Exception ignored) {
                         }
