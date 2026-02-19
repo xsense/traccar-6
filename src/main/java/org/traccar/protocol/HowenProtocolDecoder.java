@@ -349,7 +349,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
 
             case "61":
                 // Alcohol detection alarm
-                position.addAlarm(Position.ALARM_GENERAL);
+                position.addAlarm(Position.ALARM_ALCOHOL);
                 position.set("alcoholDetected", true);
                 if (json.containsKey("det")) {
                     JsonObject detail = json.getJsonObject("det");
