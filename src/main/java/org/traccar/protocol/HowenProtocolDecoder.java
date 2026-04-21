@@ -1820,8 +1820,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         } else if (buf.readableBytes() >= 3) {
             int count = buf.getUnsignedByte(buf.readerIndex());
             // sanity check
-            if (count > 0 && count <= 4 &&
-                buf.readableBytes() >= 1 + count * 2) {
+            if (count > 0 && count <= 4 && buf.readableBytes() >= 1 + count * 2) {
                 int raw = buf.getUnsignedShortLE(buf.readerIndex() + 1);
                 double voltage = raw / 100.0;
                 // filter ค่าให้สมจริง (รถทั่วไป)
