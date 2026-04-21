@@ -1814,20 +1814,28 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             decodeTemperatureStatus(position, buf);
         }
 
-        // Voltage Status
-        if (BitUtil.check(content, 6) && buf.readableBytes() >= 3) {
+        // Voltage Status (Hybrid)
+        if ((BitUtil.check(content, 6) || BitUtil.check(content, 13)) && buf.readableBytes() >= 3) {
             decodeVoltageStatus(position, buf);
+        } else if (buf.readableBytes() >= 3) {
+            int count = buf.getUnsignedByte(buf.readerIndex());
+            // sanity check
+            if (count > 0 && count <= 4 && buf.readableBytes() >= 1 + count * 2) {
+                int raw = buf.getUnsignedShortLE(buf.readerIndex() + 1);
+                double voltage = raw / 100.0;
+                // filter ค่าให้สมจริง (รถทั่วไป)
+                if (voltage > 5 && voltage < 60) {
+                    LOGGER.info("Voltage detected by fallback");
+                    decodeVoltageStatus(position, buf);
+                }
+            }
         }
 
         // Cement Mixer Data (Full 16 bytes)
-        if (buf.readableBytes() >= 16) {
-            decodeCementMixerStatus16byte(position, buf);
-        }
-
-        // Tanker custom (16 bytes)
         // if (buf.readableBytes() >= 16) {
-        //     decodeTankerCustom(position, buf);
+        //     decodeCementMixerStatus16byte(position, buf);
         // }
+
         // Tanker custom (16 bytes) - ใช้ 16 bytes สุดท้าย
         if (buf.readableBytes() >= 16) {
             // 16 bytes สุดท้าย
