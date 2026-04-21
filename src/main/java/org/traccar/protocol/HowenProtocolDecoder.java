@@ -2336,19 +2336,14 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         if (!buf.isReadable()) {
             return;
         }
-    
         int count = buf.readUnsignedByte();
-    
         if (buf.readableBytes() < count * 2) {
             LOGGER.warn("VoltageStatus: not enough data");
             return;
         }
-    
         for (int i = 0; i < count; i++) {
-    
             int raw = buf.readUnsignedShortLE();
             double value;
-    
             if (i <= 1) {
                 // Voltage (*100)
                 value = raw / 100.0;
@@ -2356,7 +2351,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Analog (*1000)
                 value = raw / 1000.0;
             }
-    
             switch (i) {
                 case 0:
                     // battery
@@ -2378,7 +2372,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     position.set("voltage." + i, value);
                     break;
             }
-    
             LOGGER.info("Voltage[{}] raw={} value={}", i, raw, value);
         }
     }
