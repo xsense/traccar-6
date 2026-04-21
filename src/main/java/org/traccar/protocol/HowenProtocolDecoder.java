@@ -1814,6 +1814,11 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             decodeTemperatureStatus(position, buf);
         }
 
+        // Voltage Status
+        if (BitUtil.check(content, 6) && buf.readableBytes() >= 3) {
+            decodeVoltageStatus(position, buf);
+        }
+
         // Cement Mixer Data (Full 16 bytes)
         if (buf.readableBytes() >= 16) {
             decodeCementMixerStatus16byte(position, buf);
@@ -2324,5 +2329,57 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             sb.append(String.format("%02x", buf.getUnsignedByte(i)));
         }
         return sb.toString();
+    }
+
+    private void decodeVoltageStatus(Position position, ByteBuf buf) {
+
+        if (!buf.isReadable()) {
+            return;
+        }
+    
+        int count = buf.readUnsignedByte();
+    
+        if (buf.readableBytes() < count * 2) {
+            LOGGER.warn("VoltageStatus: not enough data");
+            return;
+        }
+    
+        for (int i = 0; i < count; i++) {
+    
+            int raw = buf.readUnsignedShortLE();
+            double value;
+    
+            if (i <= 1) {
+                // Voltage (*100)
+                value = raw / 100.0;
+            } else {
+                // Analog (*1000)
+                value = raw / 1000.0;
+            }
+    
+            switch (i) {
+                case 0:
+                    // battery
+                    position.set("voltage.bat", value); // map standard
+                    break;
+                case 1:
+                    // capacitorVoltage
+                    position.set("voltage.vcc", value);
+                    break;
+                case 2:
+                    // analog1
+                    position.set("voltage.vo1", value);
+                    break;
+                case 3:
+                    // analog2
+                    position.set("voltage.vo2", value);
+                    break;
+                default:
+                    position.set("voltage." + i, value);
+                    break;
+            }
+    
+            LOGGER.info("Voltage[{}] raw={} value={}", i, raw, value);
+        }
     }
 }
