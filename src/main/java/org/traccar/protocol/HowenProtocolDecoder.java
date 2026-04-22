@@ -2435,7 +2435,9 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         for (int i = 0; i < count; i++) {
             int raw = buf.readUnsignedShortLE();
             double value;
-            if (i <= 1) {
+            if (i == 0) {
+                value = raw;            // Length
+            } else if (i < 3) {
                 value = raw / 100.0;   // Voltage
             } else {
                 value = raw / 1000.0;  // Analog
