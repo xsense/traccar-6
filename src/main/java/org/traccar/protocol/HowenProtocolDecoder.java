@@ -2384,7 +2384,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 LOGGER.warn("Voltage: invalid length {}", length);
                 return;
             }
-    
             ByteBuf data = buf.readSlice(length);
             LOGGER.info("Voltage package[{}] length={} HEX={}", p, length, toHex(data));
             int index = 0;
