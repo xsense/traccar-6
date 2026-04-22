@@ -2372,43 +2372,56 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         if (!buf.isReadable()) {
             return;
         }
-        int count = buf.readUnsignedByte();
-        if (buf.readableBytes() < count * 2) {
-            LOGGER.warn("VoltageStatus: not enough data");
-            return;
-        }
-        for (int i = 0; i < count; i++) {
-            int raw = buf.readUnsignedShortLE();
-            double value;
-            if (i <= 1) {
-                // Voltage (*100)
-                value = raw / 100.0;
-            } else {
-                // Analog (*1000)
-                value = raw / 1000.0;
+        int packageCount = buf.readUnsignedByte();
+        LOGGER.info("Voltage packageCount={}", packageCount);
+        for (int p = 0; p < packageCount; p++) {
+            if (buf.readableBytes() < 2) {
+                LOGGER.warn("Voltage: not enough data for length");
+                return;
             }
-            switch (i) {
-                case 0:
-                    // battery
-                    position.set("voltage.bat", value); // map standard
-                    break;
-                case 1:
-                    // capacitorVoltage
-                    position.set("voltage.vcc", value);
-                    break;
-                case 2:
-                    // analog1
-                    position.set("voltage.vo1", value);
-                    break;
-                case 3:
-                    // analog2
-                    position.set("voltage.vo2", value);
-                    break;
-                default:
-                    position.set("voltage." + i, value);
-                    break;
+            int length = buf.readUnsignedShortLE();
+            if (buf.readableBytes() < length) {
+                LOGGER.warn("Voltage: invalid length {}", length);
+                return;
             }
-            LOGGER.info("Voltage[{}] raw={} value={}", i, raw, value);
+    
+            ByteBuf data = buf.readSlice(length);
+            LOGGER.info("Voltage package[{}] length={} HEX={}", p, length, toHex(data));
+            int index = 0;
+            while (data.readableBytes() >= 2) {
+                int raw = data.readUnsignedShortLE();
+                double value;
+                if (index <= 1) {
+                    // Voltage (*100)
+                    value = raw / 100.0;
+                } else {
+                    // Analog (*1000)
+                    value = raw / 1000.0;
+                }
+                switch (index) {
+                    case 0:
+                        // battery
+                        position.set("voltage.bat", value); // map standard
+                        break;
+                    case 1:
+                        // capacitorVoltage
+                        position.set("voltage.vcc", value);
+                        break;
+                    case 2:
+                        // analog1
+                        position.set("voltage.vo1", value);
+                        break;
+                    case 3:
+                        // analog2
+                        position.set("voltage.vo2", value);
+                        break;
+                    default:
+                        position.set("voltage." + index, value);
+                        break;
+                }
+                LOGGER.info("Voltage[{}] raw={} value={}", index, raw, value);
+                index++;
+            }
         }
     }
 }
