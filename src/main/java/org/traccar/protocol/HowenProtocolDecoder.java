@@ -2367,29 +2367,73 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         }
     }
 
+    // private void decodeVoltageStatus(Position position, ByteBuf buf) {
+
+    //     if (buf.readableBytes() < 3) {
+    //         return;
+    //     }
+    //     buf.markReaderIndex();
+    //     int count = buf.readUnsignedByte();
+    //     int length = buf.readUnsignedShortLE();
+    //     LOGGER.info("Voltage count={}, length={}", count, length);
+    //     // validate
+    //     if (count <= 0 || count > 8) {
+    //         LOGGER.warn("Voltage: invalid count {}", count);
+    //         buf.resetReaderIndex();
+    //         return;
+    //     }
+    //     if (length < count * 2 || buf.readableBytes() < length) {
+    //         LOGGER.warn("Voltage: invalid length {}", length);
+    //         buf.resetReaderIndex();
+    //         return;
+    //     }
+    //     ByteBuf data = buf.readSlice(length);
+    //     for (int i = 0; i < count && data.readableBytes() >= 2; i++) {
+    //         int raw = data.readUnsignedShortLE();
+    //         double value;
+    //         if (i <= 1) {
+    //             value = raw / 100.0;   // Voltage
+    //         } else {
+    //             value = raw / 1000.0;  // Analog
+    //         }
+    //         switch (i) {
+    //             case 0:
+    //                 // battery
+    //                 position.set("voltage.bat", value);
+    //                 break;
+    //             case 1:
+    //                 // capacitorVoltage
+    //                 position.set("voltage.vcc", value);
+    //                 break;
+    //             case 2:
+    //                 // analog1
+    //                 position.set("voltage.vo1", value);
+    //                 break;
+    //             case 3:
+    //                 // analog2
+    //                 position.set("voltage.vo2", value);
+    //                 break;
+    //             default:
+    //                 position.set("voltage." + i, value);
+    //                 break;
+    //         }
+    //         LOGGER.info("Voltage[{}] raw={} value={}", i, raw, value);
+    //     }
+    // }
+
     private void decodeVoltageStatus(Position position, ByteBuf buf) {
 
-        if (buf.readableBytes() < 3) {
+        if (!buf.isReadable()) {
             return;
         }
-        buf.markReaderIndex();
-        int count = buf.readUnsignedByte();
-        int length = buf.readUnsignedShortLE();
-        LOGGER.info("Voltage count={}, length={}", count, length);
-        // validate
-        if (count <= 0 || count > 8) {
-            LOGGER.warn("Voltage: invalid count {}", count);
-            buf.resetReaderIndex();
+        int count = buf.readUnsignedByte(); // ✔ ตัวนี้คือ count
+        LOGGER.info("Voltage count={}", count);
+        if (buf.readableBytes() < count * 2) {
+            LOGGER.warn("VoltageStatus: not enough data");
             return;
         }
-        if (length < count * 2 || buf.readableBytes() < length) {
-            LOGGER.warn("Voltage: invalid length {}", length);
-            buf.resetReaderIndex();
-            return;
-        }
-        ByteBuf data = buf.readSlice(length);
-        for (int i = 0; i < count && data.readableBytes() >= 2; i++) {
-            int raw = data.readUnsignedShortLE();
+        for (int i = 0; i < count; i++) {
+            int raw = buf.readUnsignedShortLE();
             double value;
             if (i <= 1) {
                 value = raw / 100.0;   // Voltage
@@ -2398,19 +2442,18 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             }
             switch (i) {
                 case 0:
-                    // battery
-                    position.set("voltage.bat", value);
+                    position.set("voltage.length", value);
                     break;
                 case 1:
-                    // capacitorVoltage
-                    position.set("voltage.vcc", value);
+                    position.set("voltage.bat", value);
                     break;
                 case 2:
-                    // analog1
-                    position.set("voltage.vo1", value);
+                    position.set("voltage.vcc", value);
                     break;
                 case 3:
-                    // analog2
+                    position.set("voltage.vo1", value);
+                    break;
+                case 4:
                     position.set("voltage.vo2", value);
                     break;
                 default:
