@@ -1798,24 +1798,32 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             decodeModuleStatus(position, buf);
         }
 
-        if (BitUtil.check(content, 8) && buf.readableBytes() >= 5) {
+        if (BitUtil.check(content, 5) && buf.readableBytes() >= 5) {
             decodeMobileStatus(position, buf);
         }
 
-        if (BitUtil.check(content, 5) && buf.readableBytes() >= 11) {
+        if (BitUtil.check(content, 7) && buf.readableBytes() >= 11) {
             decodeStorageStatus(position, buf);
         }
 
-        if (BitUtil.check(content, 9) && buf.readableBytes() >= 12) {
+        if (BitUtil.check(content, 8) && buf.readableBytes() >= 12) {
             decodeAlarmStatus(position, buf);
         }
 
-        if (BitUtil.check(content, 7) && buf.readableBytes() >= 12) {
+        if (BitUtil.check(content, 9) && buf.readableBytes() >= 12) {
             decodeTemperatureStatus(position, buf);
         }
 
+        // Statistics Data
+        if (BitUtil.check(content, 10) && buf.readableBytes() >= 10) {
+            // ByteBuf slice = buf.slice(buf.readerIndex(), 10);
+            // LOGGER.info("Statistics HEX: {}", toHex(slice));
+            // buf.skipBytes(10);
+            decodeStatisticsData(position, buf);
+        }
+        
         // Voltage Status (Hybrid)
-        if ((BitUtil.check(content, 6) || BitUtil.check(content, 13)) && buf.readableBytes() >= 3) {
+        if (BitUtil.check(content, 13) && buf.readableBytes() >= 3) {
             decodeVoltageStatus(position, buf);
         } else if (buf.readableBytes() >= 3) {
             int count = buf.getUnsignedByte(buf.readerIndex());
@@ -2337,6 +2345,27 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             sb.append(String.format("%02x", buf.getUnsignedByte(i)));
         }
         return sb.toString();
+    }
+
+    private void decodeStatisticsData(Position position, ByteBuf buf) {
+
+        if (buf.readableBytes() < 10) {
+            return;
+        }
+        buf.markReaderIndex();
+        int flag = buf.readUnsignedShortLE();
+        boolean hasMileage = (flag & 0x0001) != 0;
+        long totalMileage = buf.readUnsignedIntLE();
+        long dayMileage = buf.readUnsignedIntLE();
+        LOGGER.info("Statistics: flag={}, total={}, day={}", flag, totalMileage, dayMileage);
+    
+        if (hasMileage) {
+            position.set("totalMileage", totalMileage);
+            position.set("dayMileage", dayMileage);
+            // optional: แปลงเป็น km
+            position.set("totalMileageKm", totalMileage / 1000.0);
+            position.set("dayMileageKm", dayMileage / 1000.0);
+        }
     }
 
     private void decodeVoltageStatus(Position position, ByteBuf buf) {
