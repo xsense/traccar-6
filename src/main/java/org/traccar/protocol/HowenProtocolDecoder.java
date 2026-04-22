@@ -2391,7 +2391,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         for (int i = 0; i < count && data.readableBytes() >= 2; i++) {
             int raw = data.readUnsignedShortLE();
             double value;
-    
             if (i <= 1) {
                 value = raw / 100.0;   // Voltage
             } else {
