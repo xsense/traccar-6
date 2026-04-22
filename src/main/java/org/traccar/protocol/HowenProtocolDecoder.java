@@ -1821,7 +1821,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             // buf.skipBytes(10);
             decodeStatisticsData(position, buf);
         }
-        
+
         // Voltage Status (Hybrid)
         if (BitUtil.check(content, 13) && buf.readableBytes() >= 3) {
             decodeVoltageStatus(position, buf);
@@ -2358,7 +2358,6 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         long totalMileage = buf.readUnsignedIntLE();
         long dayMileage = buf.readUnsignedIntLE();
         LOGGER.info("Statistics: flag={}, total={}, day={}", flag, totalMileage, dayMileage);
-    
         if (hasMileage) {
             position.set("totalMileage", totalMileage);
             position.set("dayMileage", dayMileage);
