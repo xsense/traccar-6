@@ -2447,10 +2447,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     position.set("voltage.length", value);
                     break;
                 case 1:
-                    position.set("voltage.bat", value);
+                    position.set("voltage.vcc", value);
                     break;
                 case 2:
-                    position.set("voltage.vcc", value);
+                    position.set("voltage.bat", value);
                     break;
                 case 3:
                     position.set("voltage.vo1", value);
