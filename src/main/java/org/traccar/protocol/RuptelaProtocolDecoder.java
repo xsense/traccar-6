@@ -109,7 +109,13 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
 
     private void decodeParameter(Position position, int id, ByteBuf buf, int length) {
         switch (id) {
-            case 2, 3, 4, 5 -> position.set(Position.PREFIX_IN + (id - 1), readValue(buf, length, false));
+            case 2, 3, 4, 5 -> {
+                long value = readValue(buf, length, false);
+                position.set(Position.PREFIX_IN + (id - 1), value);
+                if (id == 5 && value > 0) {
+                    position.set(Position.KEY_IGNITION, true);
+                }
+            }
             case 13, 173 -> position.set(Position.KEY_MOTION, readValue(buf, length, false) > 0);
             case 20 -> position.set(Position.PREFIX_ADC + 3, readValue(buf, length, false));
             case 21 -> position.set(Position.PREFIX_ADC + 4, readValue(buf, length, false));
