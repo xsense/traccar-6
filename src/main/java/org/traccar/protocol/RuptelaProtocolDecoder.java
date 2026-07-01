@@ -253,6 +253,7 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
 
                 // Read 1 byte data
                 int valueCount = buf.readUnsignedByte();
+                int totalIOCount = valueCount;
                 for (int j = 0; j < valueCount; j++) {
                     int id = type == MSG_EXTENDED_RECORDS ? buf.readUnsignedShort() : buf.readUnsignedByte();
                     decodeParameter(position, id, buf, 1);
@@ -260,6 +261,7 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
 
                 // Read 2 byte data
                 valueCount = buf.readUnsignedByte();
+                totalIOCount += valueCount;
                 for (int j = 0; j < valueCount; j++) {
                     int id = type == MSG_EXTENDED_RECORDS ? buf.readUnsignedShort() : buf.readUnsignedByte();
                     decodeParameter(position, id, buf, 2);
@@ -267,6 +269,7 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
 
                 // Read 4 byte data
                 valueCount = buf.readUnsignedByte();
+                totalIOCount += valueCount;
                 for (int j = 0; j < valueCount; j++) {
                     int id = type == MSG_EXTENDED_RECORDS ? buf.readUnsignedShort() : buf.readUnsignedByte();
                     decodeParameter(position, id, buf, 4);
@@ -274,9 +277,15 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
 
                 // Read 8 byte data
                 valueCount = buf.readUnsignedByte();
+                totalIOCount += valueCount;
                 for (int j = 0; j < valueCount; j++) {
                     int id = type == MSG_EXTENDED_RECORDS ? buf.readUnsignedShort() : buf.readUnsignedByte();
                     decodeParameter(position, id, buf, 8);
+                }
+
+                // Skip event-only records that have no IO data (e.g. no IGNITION, odometer, etc.)
+                if (totalIOCount == 0) {
+                    continue;
                 }
 
                 Integer event = position.getInteger(Position.KEY_EVENT);
