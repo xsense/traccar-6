@@ -22,6 +22,7 @@ import org.traccar.model.Group;
 import org.traccar.model.GroupedModel;
 import org.traccar.model.Pair;
 import org.traccar.model.Permission;
+import org.traccar.model.Position;
 import org.traccar.model.Server;
 import org.traccar.storage.query.Condition;
 import org.traccar.storage.query.Order;
@@ -200,7 +201,23 @@ public class MemoryStorage extends Storage {
     @Override
     public <T> long addObject(T entity, Request request) {
         long id = increment.incrementAndGet();
-        objects.computeIfAbsent(entity.getClass(), key -> new ConcurrentHashMap<>()).put(id, entity);
+        var items = objects.computeIfAbsent(entity.getClass(), key -> new ConcurrentHashMap<>());
+
+        if (entity instanceof Position position) {
+            var iterator = items.values().iterator();
+            while (iterator.hasNext()) {
+                Position item = (Position) iterator.next();
+                if (item.getDeviceId() == position.getDeviceId()) {
+                    if (item.getFixTime().after(position.getFixTime())) {
+                        return id;
+                    }
+                    iterator.remove();
+                    break;
+                }
+            }
+        }
+
+        items.put(id, entity);
         return id;
     }
 
