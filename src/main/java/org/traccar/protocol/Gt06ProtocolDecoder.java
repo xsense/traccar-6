@@ -90,6 +90,7 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
     public static final int MSG_STATUS_2 = 0x36;           // Jimi IoT 4G
     public static final int MSG_ALARM_MODULE = 0x39;       // Jimi IoT 4G
     public static final int MSG_WIFI_ALARM = 0xA9;         // Jimi IoT 4G
+    public static final int MSG_ATTENDANCE = 0xB0;         // Jimi IoT 4G
     public static final int MSG_BLUETOOTH_CLOCK = 0xB2;    // Jimi IoT 4G
     public static final int MSG_DEVICE_STATUS = 0xF1;      // Jimi IoT 4G
     public static final int MSG_WIFI_2 = 0x69;
