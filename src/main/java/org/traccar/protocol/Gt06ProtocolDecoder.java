@@ -454,7 +454,7 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
             case 0x09 -> modelVL ? Position.ALARM_TOW : Position.ALARM_VIBRATION;
             case 0x0E, 0x0F -> Position.ALARM_LOW_BATTERY;
             case 0x11 -> Position.ALARM_POWER_OFF;
-            case 0x0C, 0x13, 0x25 -> Position.ALARM_TAMPERING;
+            case 0x0C, 0x13, 0x25, 0x32 -> Position.ALARM_TAMPERING;
             case 0x14 -> Position.ALARM_DOOR;
             case 0x18 -> modelLW ? Position.ALARM_ACCIDENT : Position.ALARM_REMOVING;
             case 0x19 -> modelLW ? Position.ALARM_ACCELERATION : Position.ALARM_LOW_BATTERY;
@@ -462,10 +462,17 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
             case 0x1B, 0x2A, 0x2B, 0x2E -> Position.ALARM_CORNERING;
             case 0x23 -> Position.ALARM_FALL_DOWN;
             case 0x26 -> Position.ALARM_ACCELERATION;
-            case 0x28 -> modelSW ? Position.ALARM_CORNERING : Position.ALARM_BRAKING;
+            case 0x28 -> modelSW ? Position.ALARM_CORNERING
+                    : modelVL ? Position.ALARM_POWER_OFF : Position.ALARM_BRAKING;
             case 0x29 -> modelSW ? Position.ALARM_ACCIDENT : Position.ALARM_ACCELERATION;
             case 0x2C -> Position.ALARM_ACCIDENT;
             case 0x30 -> modelVL ? Position.ALARM_BRAKING : Position.ALARM_JAMMING;
+            case 0x33 -> Position.ALARM_LOCK;
+            case 0x34 -> Position.ALARM_UNLOCK;
+            case 0x53 -> Position.ALARM_FUEL_LEAK;
+            case 0x5B, 0x5C -> Position.ALARM_TEMPERATURE;
+            case 0xC9 -> Position.ALARM_IDLE;
+            case 0x0107, 0x010B -> Position.ALARM_JAMMING;
             default -> null;
         };
     }
@@ -1189,7 +1196,9 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
                         case "ALM1":
                         case "ALM2":
                         case "ALM3":
+                        case "ALM4":
                             position.set("alarm" + pair[0].charAt(3) + "Status", Integer.parseInt(pair[1], 16));
+                            break;
                         case "STA1":
                             position.set("otherStatus", Integer.parseInt(pair[1], 16));
                             break;
