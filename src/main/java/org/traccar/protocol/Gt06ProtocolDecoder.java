@@ -90,6 +90,7 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
     public static final int MSG_STATUS_2 = 0x36;           // Jimi IoT 4G
     public static final int MSG_ALARM_MODULE = 0x39;       // Jimi IoT 4G
     public static final int MSG_WIFI_ALARM = 0xA9;         // Jimi IoT 4G
+    public static final int MSG_BLUETOOTH_CLOCK = 0xB2;    // Jimi IoT 4G
     public static final int MSG_DEVICE_STATUS = 0xF1;      // Jimi IoT 4G
     public static final int MSG_WIFI_2 = 0x69;
     public static final int MSG_GPS_MODULAR = 0x70;
@@ -766,6 +767,18 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
                 int language = buf.readUnsignedByte();
                 position.addAlarm(decodeAlarm((language >> 4) << 8 | alarm, modelLW, modelSW, modelVL));
             }
+
+        } else if (type == MSG_BLUETOOTH_CLOCK) {
+
+            getLastLocation(position, decodeDate(buf, deviceSession));
+
+            position.set(Position.KEY_RSSI, buf.readByte());
+            position.set("tagMac", ByteBufUtil.hexDump(buf.readSlice(6)));
+            position.set("tagUuid", ByteBufUtil.hexDump(buf.readSlice(16)));
+            position.set("tagMajor", buf.readUnsignedShort());
+            position.set("tagMinor", buf.readUnsignedShort());
+            position.set("tagBattery", buf.readUnsignedShort() / 100.0);
+            position.set("clock", BitUtil.between(buf.readUnsignedByte(), 2, 6));
 
         } else if (type == MSG_STRING) {
 
