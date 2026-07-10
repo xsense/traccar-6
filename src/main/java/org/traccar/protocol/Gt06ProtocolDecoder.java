@@ -88,6 +88,7 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
     public static final int MSG_X1_PHOTO_INFO = 0x35;
     public static final int MSG_X1_PHOTO_DATA = 0x36;
     public static final int MSG_STATUS_2 = 0x36;           // Jimi IoT 4G
+    public static final int MSG_DEVICE_STATUS = 0xF1;      // Jimi IoT 4G
     public static final int MSG_WIFI_2 = 0x69;
     public static final int MSG_GPS_MODULAR = 0x70;
     public static final int MSG_WIFI_4 = 0xF3;
@@ -1489,35 +1490,51 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
 
             return position;
 
-        } else if (type == MSG_PERIPHERAL) {
+        } else if (type == MSG_PERIPHERAL || type == MSG_DEVICE_STATUS) {
 
-            long timestamp = buf.readUnsignedInt() * 1000;
-            getLastLocation(position, new Date(timestamp));
+            getLastLocation(position, new Date(buf.readUnsignedInt() * 1000));
 
             while (buf.readableBytes() > 6) {
                 int statusId = buf.readUnsignedShort();
-                switch (statusId) {
-                    case 0x000A -> {
-                        int statusLength = buf.readUnsignedShort();
-                        buf.readUnsignedByte(); // mac address type
-                        position.set("mac", ByteBufUtil.hexDump(buf.readSlice(6)));
-                        int event = buf.readUnsignedByte();
-                        position.set(Position.KEY_EVENT, event);
-                        int eventData = buf.readUnsignedByte();
-                        position.set("eventData", event > 0 ? eventData : null);
-                        position.set("dataType", buf.readUnsignedByte());
-                        position.set("dataDetails", ByteBufUtil.hexDump(buf.readSlice(statusLength - 10)));
+                if (type == MSG_PERIPHERAL) {
+                    switch (statusId) {
+                        case 0x000A -> {
+                            int statusLength = buf.readUnsignedShort();
+                            buf.readUnsignedByte(); // mac address type
+                            position.set("mac", ByteBufUtil.hexDump(buf.readSlice(6)));
+                            int event = buf.readUnsignedByte();
+                            position.set(Position.KEY_EVENT, event);
+                            int eventData = buf.readUnsignedByte();
+                            position.set("eventData", event > 0 ? eventData : null);
+                            position.set("dataType", buf.readUnsignedByte());
+                            position.set("dataDetails", ByteBufUtil.hexDump(buf.readSlice(statusLength - 10)));
+                        }
+                        case 0x000C -> {
+                            buf.readUnsignedByte(); // length
+                            position.set("externalBatteryLevel", buf.readUnsignedByte());
+                            position.set("externalBatteryCharge", buf.readUnsignedByte() > 0 ? true : null);
+                            position.set("externalBatteryCycles", buf.readUnsignedShort());
+                            buf.skipBytes(6);
+                        }
+                        default -> {
+                            int statusLength = buf.readUnsignedByte();
+                            buf.skipBytes(statusLength == 0 ? buf.readUnsignedByte() : statusLength);
+                        }
                     }
-                    case 0x000C -> {
-                        buf.readUnsignedByte(); // length
-                        position.set("externalBatteryLevel", buf.readUnsignedByte());
-                        position.set("externalBatteryCharge", buf.readUnsignedByte() > 0 ? true : null);
-                        position.set("externalBatteryCycles", buf.readUnsignedShort());
-                        buf.skipBytes(6);
-                    }
-                    default -> {
-                        int statusLength = buf.readUnsignedByte();
-                        buf.skipBytes(statusLength == 0 ? buf.readUnsignedByte() : statusLength);
+                } else {
+                    int statusLength = buf.readUnsignedByte();
+                    switch (statusId) {
+                        case 0x0001 -> {
+                            int motionStatus = buf.readUnsignedByte();
+                            position.set(Position.KEY_MOTION, motionStatus == 0x02 || motionStatus == 0x04);
+                        }
+                        case 0x0002 -> position.set(Position.KEY_ARMED, buf.readUnsignedByte() > 0);
+                        case 0x0004 -> position.set(Position.KEY_IGNITION, buf.readUnsignedByte() > 0);
+                        case 0x0005 -> position.set(Position.KEY_POWER, buf.readUnsignedShort() / 100.0);
+                        case 0x0007 -> position.set(Position.KEY_CHARGE, buf.readUnsignedByte() > 0);
+                        case 0x000A -> position.set("chargeVoltage", buf.readUnsignedShort());
+                        case 0x000B -> position.set("batteryTemp", buf.readUnsignedShort() / 10.0);
+                        default -> buf.skipBytes(statusLength);
                     }
                 }
             }
