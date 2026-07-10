@@ -89,6 +89,7 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
     public static final int MSG_X1_PHOTO_DATA = 0x36;
     public static final int MSG_STATUS_2 = 0x36;           // Jimi IoT 4G
     public static final int MSG_ALARM_MODULE = 0x39;       // Jimi IoT 4G
+    public static final int MSG_WIFI_ALARM = 0xA9;         // Jimi IoT 4G
     public static final int MSG_DEVICE_STATUS = 0xF1;      // Jimi IoT 4G
     public static final int MSG_WIFI_2 = 0x69;
     public static final int MSG_GPS_MODULAR = 0x70;
@@ -707,7 +708,8 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
 
         } else if (type == MSG_LBS_MULTIPLE_1 || type == MSG_LBS_MULTIPLE_2 || type == MSG_LBS_MULTIPLE_3
                 || type == MSG_LBS_EXTEND || type == MSG_LBS_WIFI || type == MSG_LBS_2 || type == MSG_LBS_3
-                || (type == MSG_WIFI_3 && variant != Variant.LW4G) || (type == MSG_WIFI_5 && !extended)) {
+                || (type == MSG_WIFI_3 && variant != Variant.LW4G) || (type == MSG_WIFI_5 && !extended)
+                || type == MSG_WIFI_ALARM) {
 
             getLastLocation(position, decodeDate(buf, deviceSession));
 
@@ -720,11 +722,14 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
                     ? buf.readUnsignedShort() : buf.readUnsignedByte();
             Network network = new Network();
 
-            int cellCount = variant == Variant.WANWAY_S20 ? buf.readUnsignedByte() : type == MSG_WIFI_5 ? 6 : 7;
+            boolean cell4g = type == MSG_WIFI_ALARM && buf.readUnsignedByte() > 0;
+
+            int cellCount = variant == Variant.WANWAY_S20 || type == MSG_WIFI_ALARM
+                    ? buf.readUnsignedByte() : type == MSG_WIFI_5 ? 6 : 7;
             for (int i = 0; i < cellCount; i++) {
                 int lac;
                 int cid;
-                if (type == MSG_LBS_2 || type == MSG_WIFI_3) {
+                if (type == MSG_LBS_2 || type == MSG_WIFI_3 || cell4g) {
                     lac = buf.readInt();
                     cid = (int) buf.readLong();
                 } else if (type == MSG_WIFI_5 || type == MSG_LBS_3) {
@@ -755,6 +760,12 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
             }
 
             position.setNetwork(network);
+
+            if (type == MSG_WIFI_ALARM) {
+                int alarm = buf.readUnsignedByte();
+                int language = buf.readUnsignedByte();
+                position.addAlarm(decodeAlarm((language >> 4) << 8 | alarm, modelLW, modelSW, modelVL));
+            }
 
         } else if (type == MSG_STRING) {
 
