@@ -463,8 +463,15 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
         };
     }
 
-    private Object decodeMessage(
-            Channel channel, SocketAddress remoteAddress, ByteBuf buf, boolean extended) {
+    @Override
+    protected Object decode(
+            Channel channel, SocketAddress remoteAddress, Object msg) throws Exception {
+
+        ByteBuf buf = (ByteBuf) msg;
+
+        decodeVariant(buf);
+
+        boolean extended = buf.readShort() != 0x7878;
 
         int length = extended ? buf.readUnsignedShort() : buf.readUnsignedByte();
         int dataLength = length - 5;
@@ -1596,19 +1603,6 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
         } else {
             variant = Variant.STANDARD;
         }
-    }
-
-    @Override
-    protected Object decode(
-            Channel channel, SocketAddress remoteAddress, Object msg) throws Exception {
-
-        ByteBuf buf = (ByteBuf) msg;
-
-        decodeVariant(buf);
-
-        int header = buf.readShort();
-
-        return decodeMessage(channel, remoteAddress, buf, header != 0x7878);
     }
 
 }
