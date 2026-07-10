@@ -42,6 +42,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Stream;
@@ -89,7 +90,10 @@ public class RouteReportProvider {
         ArrayList<DeviceReportSection> devicesRoutes = new ArrayList<>();
         ArrayList<String> sheetNames = new ArrayList<>();
         for (Device device: DeviceUtil.getAccessibleDevices(storage, userId, deviceIds, groupIds)) {
-            var positions = PositionUtil.getPositions(storage, device.getId(), from, to);
+            List<Position> positions;
+            try (var stream = PositionUtil.getPositionsStream(storage, device.getId(), from, to)) {
+                positions = stream.toList();
+            }
             DeviceReportSection deviceRoutes = new DeviceReportSection();
             deviceRoutes.setDeviceName(device.getName());
             sheetNames.add(WorkbookUtil.createSafeSheetName(getUniqueSheetName(deviceRoutes.getDeviceName())));
