@@ -28,4 +28,12 @@ public final class StringUtil {
         return false;
     }
 
+    public static String stripLeading(char c, String value) {
+        int start = 0;
+        while (start < value.length() - 1 && value.charAt(start) == c) {
+            start++;
+        }
+        return value.substring(start);
+    }
+
 }

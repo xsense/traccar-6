@@ -32,6 +32,7 @@ import org.traccar.helper.BitUtil;
 import org.traccar.helper.Checksum;
 import org.traccar.helper.DataConverter;
 import org.traccar.helper.DateBuilder;
+import org.traccar.helper.StringUtil;
 import org.traccar.helper.UnitsConverter;
 import org.traccar.model.CellTower;
 import org.traccar.model.Network;
@@ -254,7 +255,7 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
     static String decodeId(ByteBuf id) {
         String serial = ByteBufUtil.hexDump(id);
         if (serial.matches("[0-9]+")) {
-            return id.readableBytes() == 10 ? serial.replaceFirst("^0+", "") : serial;
+            return serial;
         } else {
             long imei = id.getUnsignedShort(0);
             imei = (imei << 32) + id.getUnsignedInt(2);
@@ -356,7 +357,11 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
             index = buf.readUnsignedShort();
         }
 
-        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, decodeId(id));
+        String uniqueId = decodeId(id);
+        String strippedId = StringUtil.stripLeading('0', uniqueId);
+        DeviceSession deviceSession = uniqueId.equals(strippedId)
+                ? getDeviceSession(channel, remoteAddress, uniqueId)
+                : getDeviceSession(channel, remoteAddress, strippedId, uniqueId);
         if (deviceSession == null) {
             return null;
         }
