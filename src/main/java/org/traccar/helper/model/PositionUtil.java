@@ -54,13 +54,6 @@ public final class PositionUtil {
         return distance;
     }
 
-    public static List<Position> getPositions(
-            Storage storage, long deviceId, Date from, Date to) throws StorageException {
-        try (var positions = getPositionsStream(storage, deviceId, from, to)) {
-            return positions.toList();
-        }
-    }
-
     public static Stream<Position> getPositionsStreamWithExtra(
             Storage storage, long deviceId, Date from, Date to) throws StorageException {
         Stream<Position> extraStream = storage.getObjectsStream(Position.class, new Request(
