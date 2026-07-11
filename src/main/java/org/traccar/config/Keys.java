@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 - 2025 Anton Tananaev (anton@traccar.org)
+ * Copyright 2019 - 2026 Anton Tananaev (anton@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -578,6 +578,15 @@ public final class Keys {
             "database.maxPoolSize",
             List.of(KeyType.CONFIG),
             20);
+
+    /**
+     * Number of rows fetched per round trip for streamed queries (position history and exports). On PostgreSQL this
+     * enables a server-side cursor so results are not fully buffered in memory.
+     */
+    public static final ConfigKey<Integer> DATABASE_STREAM_FETCH_SIZE = new IntegerConfigKey(
+            "database.streamFetchSize",
+            List.of(KeyType.CONFIG),
+            1000);
 
     /**
      * SQL query to check connection status. Default value is 'SELECT 1'. For Oracle database you can use
