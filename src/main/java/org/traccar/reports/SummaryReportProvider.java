@@ -77,7 +77,7 @@ public class SummaryReportProvider {
             first = PositionUtil.getEdgePosition(storage, device.getId(), from, to, false);
             last = PositionUtil.getEdgePosition(storage, device.getId(), from, to, true);
         } else {
-            try (var positions = PositionUtil.getPositionsStream(storage, device.getId(), from, to)) {
+            try (var positions = PositionUtil.getPositionsStream(storage, device.getId(), from, to, 0)) {
                 for (var iterator = positions.iterator(); iterator.hasNext();) {
                     Position position = iterator.next();
                     if (first == null) {

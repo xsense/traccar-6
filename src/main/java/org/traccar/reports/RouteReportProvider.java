@@ -64,12 +64,12 @@ public class RouteReportProvider {
 
     public Stream<Position> getObjects(long userId, Collection<Long> deviceIds, Collection<Long> groupIds,
             Date from, Date to) throws StorageException {
-        reportUtils.checkPeriodLimit(from, to);
+        int limit = config.getInteger(Keys.REPORT_MAX_POSITIONS);
 
         return DeviceUtil.getAccessibleDevices(storage, userId, deviceIds, groupIds).stream()
                 .flatMap(device -> {
                     try {
-                        return PositionUtil.getPositionsStream(storage, device.getId(), from, to);
+                        return PositionUtil.getPositionsStream(storage, device.getId(), from, to, limit);
                     } catch (StorageException e) {
                         throw new RuntimeException(e);
                     }
@@ -85,13 +85,13 @@ public class RouteReportProvider {
     public void getExcel(OutputStream outputStream,
             long userId, Collection<Long> deviceIds, Collection<Long> groupIds,
             Date from, Date to) throws StorageException, IOException {
-        reportUtils.checkPeriodLimit(from, to);
+        int limit = config.getInteger(Keys.REPORT_MAX_POSITIONS);
 
         ArrayList<DeviceReportSection> devicesRoutes = new ArrayList<>();
         ArrayList<String> sheetNames = new ArrayList<>();
         for (Device device: DeviceUtil.getAccessibleDevices(storage, userId, deviceIds, groupIds)) {
             List<Position> positions;
-            try (var stream = PositionUtil.getPositionsStream(storage, device.getId(), from, to)) {
+            try (var stream = PositionUtil.getPositionsStream(storage, device.getId(), from, to, limit)) {
                 positions = stream.toList();
             }
             DeviceReportSection deviceRoutes = new DeviceReportSection();

@@ -1518,6 +1518,15 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Maximum number of positions returned by a single history or export request. Prevents unbounded queries from
+     * loading an entire result set into memory. Set to 0 to disable the limit.
+     */
+    public static final ConfigKey<Integer> REPORT_MAX_POSITIONS = new IntegerConfigKey(
+            "report.maxPositions",
+            List.of(KeyType.CONFIG),
+            50000);
+
+    /**
      * Time threshold for fast reports. Fast reports are more efficient, but less accurate and missing some information.
      * The value is in seconds. One day by default.
      */
