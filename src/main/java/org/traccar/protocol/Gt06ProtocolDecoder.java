@@ -30,6 +30,7 @@ import org.traccar.helper.Checksum;
 import org.traccar.helper.DateBuilder;
 import org.traccar.helper.Parser;
 import org.traccar.helper.PatternBuilder;
+import org.traccar.helper.StringUtil;
 import org.traccar.helper.UnitsConverter;
 import org.traccar.model.CellTower;
 import org.traccar.model.Network;
@@ -1226,7 +1227,8 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
 
                 buf.skipBytes(8); // imei
                 buf.skipBytes(8); // imsi
-                position.set(Position.KEY_ICCID, ByteBufUtil.hexDump(buf.readSlice(10)).replaceAll("f", ""));
+                position.set(Position.KEY_ICCID, StringUtil.stripTrailing(
+                        'f', ByteBufUtil.hexDump(buf.readSlice(10))));
                 return position;
 
             } else if (subType == 0x0b) {

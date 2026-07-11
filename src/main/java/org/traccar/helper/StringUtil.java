@@ -36,4 +36,12 @@ public final class StringUtil {
         return value.substring(start);
     }
 
+    public static String stripTrailing(char c, String value) {
+        int end = value.length();
+        while (end > 1 && value.charAt(end - 1) == c) {
+            end--;
+        }
+        return value.substring(0, end);
+    }
+
 }

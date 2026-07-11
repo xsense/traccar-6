@@ -1124,8 +1124,8 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                                     }
                                     break;
                                 case 0x00B2:
-                                    position.set(Position.KEY_ICCID, ByteBufUtil.hexDump(
-                                            buf.readSlice(10)).replaceAll("f", ""));
+                                    position.set(Position.KEY_ICCID, StringUtil.stripTrailing(
+                                            'f', ByteBufUtil.hexDump(buf.readSlice(10))));
                                     break;
                                 case 0x00B9:
                                     buf.readUnsignedByte(); // count
