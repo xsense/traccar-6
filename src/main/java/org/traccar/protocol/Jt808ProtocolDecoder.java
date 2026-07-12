@@ -1540,9 +1540,8 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                             case 0x012E -> position.set("oilLevel", buf.readUnsignedShort() / 10.0);
                             case 0x052A -> position.set(Position.KEY_FUEL, buf.readUnsignedShort() / 100.0);
                             case 0x0105, 0x052C -> position.set(Position.KEY_FUEL_USED, buf.readUnsignedInt() / 100.0);
-                            case 0x014A, 0x0537, 0x0538, 0x0539 -> {
+                            case 0x014A, 0x0537, 0x0538, 0x0539 ->
                                 position.set(Position.KEY_FUEL_CONSUMPTION, buf.readUnsignedShort() / 100.0);
-                            }
                             case 0x052B -> position.set(Position.KEY_FUEL, buf.readUnsignedByte());
                             case 0x052D -> position.set(Position.KEY_COOLANT_TEMP, buf.readUnsignedByte() - 40);
                             case 0x052E -> position.set("airTemp", buf.readUnsignedByte() - 40);
@@ -1552,6 +1551,8 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                             case 0x053D -> position.set("intakePressure", buf.readUnsignedShort() / 10.0);
                             case 0x0544 -> position.set("liquidLevel", buf.readUnsignedByte());
                             case 0x0547, 0x0548 -> position.set(Position.KEY_THROTTLE, buf.readUnsignedByte());
+                            case 0xFEEC -> position.set(Position.KEY_VIN,
+                                    buf.readCharSequence(length, StandardCharsets.US_ASCII).toString());
                             default -> {
                                 switch (length) {
                                     case 1 -> position.set(Position.PREFIX_IO + id, buf.readUnsignedByte());
@@ -1631,6 +1632,22 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
                     decodeCoordinates(position, deviceSession, buf);
                     position.setTime(time);
                     break;
+                case 0x04:
+                    int tripProperty = buf.readUnsignedByte();
+                    position.set("tripNumber", buf.readUnsignedInt());
+                    buf.skipBytes(6); // start time
+                    if (tripProperty == 0x02) {
+                        buf.skipBytes(6); // end time
+                        buf.skipBytes(8); // start location
+                        buf.skipBytes(8); // end location
+                        buf.skipBytes(1); // location flags
+                        position.set("idlingCount", buf.readUnsignedShort());
+                        position.set("idlingTime", buf.readUnsignedShort());
+                        position.set(Position.KEY_ODOMETER_TRIP, buf.readUnsignedShort() * 100L);
+                        position.set("tripFuel", buf.readUnsignedShort() / 100.0);
+                    }
+                    getLastLocation(position, time);
+                    break;
                 case 0x0B:
                     if (buf.readUnsignedByte() > 0) {
                         position.set(Position.KEY_VIN, buf.readCharSequence(17, StandardCharsets.US_ASCII).toString());
@@ -1669,6 +1686,27 @@ public class Jt808ProtocolDecoder extends BaseProtocolDecoder {
             position.setCourse(buf.readUnsignedShort());
 
             // TODO more positions and g sensor data
+
+            return position;
+
+        } else if (type == 0xF3) {
+
+            Position position = new Position(getProtocolName());
+            position.setDeviceId(deviceSession.getDeviceId());
+
+            while (buf.readableBytes() > 4) {
+                int subtype = buf.readUnsignedShort();
+                int length = buf.readUnsignedShort();
+                int endIndex = buf.readerIndex() + length;
+                switch (subtype) {
+                    case 0x0002 -> position.set("collision", buf.readUnsignedShort() / 256.0 / 100.0);
+                    case 0x0006 -> position.setDeviceTime(readDate(buf, deviceSession.get(DeviceSession.KEY_TIMEZONE)));
+                    default -> {}
+                }
+                buf.readerIndex(endIndex);
+            }
+
+            getLastLocation(position, position.getDeviceTime());
 
             return position;
 
