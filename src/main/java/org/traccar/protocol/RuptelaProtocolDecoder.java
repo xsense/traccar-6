@@ -112,6 +112,9 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
             case 2, 3, 4, 5 -> {
                 long value = readValue(buf, length, false);
                 position.set(Position.PREFIX_IN + (id - 1), value);
+                if (id == 2 || id == 4) {
+                    position.set(Position.PREFIX_IO + id, value);
+                }
                 if (id == 5 && value > 0) {
                     position.set(Position.KEY_IGNITION, true);
                 }
@@ -157,7 +160,13 @@ public class RuptelaProtocolDecoder extends BaseProtocolDecoder {
             case 205 -> position.set(Position.KEY_FUEL_LEVEL, readValue(buf, length, false));
             case 207 -> position.set(Position.KEY_FUEL_LEVEL, readValue(buf, length, false) * 0.4);
             case 208 -> position.set(Position.KEY_FUEL_USED, readValue(buf, length, false) * 0.5);
-            case 251, 409 -> position.set(Position.KEY_IGNITION, readValue(buf, length, false) > 0);
+            case 251, 409 -> {
+                long value = readValue(buf, length, false);
+                position.set(Position.KEY_IGNITION, value > 0);
+                if (id == 409) {
+                    position.set(Position.PREFIX_IO + id, value);
+                }
+            }
             case 410 -> {
                 if (readValue(buf, length, false) > 0) {
                     position.addAlarm(Position.ALARM_TOW);
