@@ -872,6 +872,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
     }
 
     private static final int TEMPERATURE_SENSOR_ENTRY = 9; // SN (8 bytes) + number (1 byte)
+    private static final int TEMPERATURE_SENSOR_MAX = 8;
 
     private int binaryPayloadEnd(ByteBuf buf) {
         int end = buf.writerIndex();
@@ -976,16 +977,25 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
         int start = index + 5;
         int count = (binaryPayloadEnd(buf) - start + 1) / (TEMPERATURE_SENSOR_ENTRY + 2);
         StringBuilder result = new StringBuilder();
+        List<ByteBuf> retry = new LinkedList<>();
         for (int i = 0; i < count; i++) {
             int offset = start + i * (TEMPERATURE_SENSOR_ENTRY + 2);
+            int number = buf.getUnsignedByte(offset + 8);
+            int code = buf.getUnsignedByte(offset + 9);
             if (i > 0) {
                 result.append(",");
             }
-            result.append("Temp").append(buf.getUnsignedByte(offset + 8)).append(":")
-                    .append(ByteBufUtil.hexDump(buf, offset, 8)).append(":")
-                    .append(buf.getUnsignedByte(offset + 9));
+            result.append("Temp").append(number).append(":")
+                    .append(ByteBufUtil.hexDump(buf, offset, 8)).append(":").append(code);
+            // number may still be held by a sensor that is registered but not connected, try next one
+            if (code == 2 && number < TEMPERATURE_SENSOR_MAX) {
+                ByteBuf entry = Unpooled.copiedBuffer(buf.slice(offset, TEMPERATURE_SENSOR_ENTRY));
+                entry.setByte(8, number + 1);
+                retry.add(entry);
+            }
         }
         LOGGER.info("MSG C40: " + imei + "," + result);
+        registerTemperatureSensors(channel, remoteAddress, imei, retry);
         position.set(Position.KEY_RESULT, result.toString());
         return position;
     }
