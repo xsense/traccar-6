@@ -26,7 +26,6 @@ import org.traccar.BaseProtocolDecoder;
 import org.traccar.session.DeviceSession;
 import org.traccar.NetworkMessage;
 import org.traccar.Protocol;
-import org.traccar.helper.BufferUtil;
 import org.traccar.helper.Checksum;
 import org.traccar.helper.Parser;
 import org.traccar.helper.PatternBuilder;
@@ -99,7 +98,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
             .number("(d+)?,")                    // protocol
             .number("(x{4})?")                   // fuel
             .groupBegin()
-            .number(",(x{6}(?:|x{6})*)?")        // temperature
+            .number(",(x{6}(?:\\|x{6})*)?")      // temperature
             .groupBegin()
             .number(",(d+)")                     // data count
             .expression(",([^*]*)")              // data
@@ -287,18 +286,15 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
                         continue;
                     }
                     int index = Integer.parseInt(temp.substring(0, 2), 16);
-                    if (protocol >= 3) {
-                        if (temp.length() >= 6) {
-                            double value = (short) Integer.parseInt(temp.substring(2, 6), 16);
-                            position.set(Position.PREFIX_TEMP + index, value * 0.01);
-                        }
+                    if (protocol >= 3 && protocol < 100) {
+                        double value = (short) Integer.parseInt(temp.substring(2, 6), 16);
+                        position.set(Position.PREFIX_TEMP + index, value * 0.01);
                     } else {
-                        // old protocol: two hex for integer part and remaining as fractional (2)
-                        double value = Byte.parseByte(temp.substring(2, 4), 16);
-                        if (temp.length() > 4) {
-                            value += (value < 0 ? -0.01 : 0.01) * Integer.parseInt(temp.substring(4), 16);
-                        }
-                        position.set(Position.PREFIX_TEMP + index, value);
+                        // T1/T333 (including xsense firmware protocol 108): integer byte + fraction byte,
+                        // high bit of the integer byte is the sign (range -127 to +127)
+                        int integer = Integer.parseInt(temp.substring(2, 4), 16);
+                        double value = (integer & 0x7F) + Integer.parseInt(temp.substring(4, 6), 16) * 0.01;
+                        position.set(Position.PREFIX_TEMP + index, (integer & 0x80) != 0 ? -value : value);
                     }
                 }
             }
@@ -810,48 +806,115 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
             return position;
     }
 
-        private Position decodeCommandResultC42(Channel channel, SocketAddress remoteAddress,
-            ByteBuf buf, int index, String imei) {
-            Position position = new Position(getProtocolName());
-            position.setDeviceId(getDeviceSession(channel, remoteAddress, imei).getDeviceId());
-            getLastLocation(position, null);
-            ByteBuf imeibuf =  buf.readBytes(index + 1);
-            buf.readBytes(4);
-            int tempsize = (buf.writerIndex() - (index + 1 + 4)) / 10;
-            LOGGER.info("MSG C42: " + tempsize + "," +  buf.toString(StandardCharsets.US_ASCII)
-            + "," + index + "," + buf.writerIndex());
-            if (tempsize > 0) {
-                StringBuilder temps = new StringBuilder();
-                for (int i = 0; i < tempsize; i++) {
-                ByteBuf temp =  buf.readBytes(10);
-                temps.append("Temp" + (i + 1) + ":" + BufferUtil.toHexString(temp));
-                if (i + 1 < tempsize) {
-                    temps.append(",");
-                }
-                LOGGER.info("MSG C42: " + tempsize + "," +  imeibuf.toString(StandardCharsets.US_ASCII)
-                + "," + index + "," + buf.writerIndex() + "," + temps.toString());
-                byte newValue = (byte) (0x1 + i);
-                temp.setByte(8, newValue);
-                temp.setByte(9, (byte) (0x2a));
-                registerTemp(channel, remoteAddress, imei, temp);
-            }
-            String result = temps.toString();
-            position.set(Position.KEY_RESULT, result);
-            return position;
+    private static final int TEMPERATURE_SENSOR_ENTRY = 9; // SN (8 bytes) + number (1 byte)
+
+    private int binaryPayloadEnd(ByteBuf buf) {
+        int end = buf.writerIndex();
+        if (end >= 2 && buf.getByte(end - 2) == '\r' && buf.getByte(end - 1) == '\n') {
+            end -= 2;
         }
-        return null;
+        return end - 3; // "*XX" checksum
     }
 
-    private void registerTemp(Channel channel, SocketAddress socketAddress, String imei, ByteBuf tempset) {
-        if (channel != null) {
-                char dataId = MeitrackProtocolEncoder.randomASCII();
-                String content = "C40," + tempset.toString(StandardCharsets.US_ASCII);
-                int length = 1 + imei.length() + 1 + content.length() + 4;
-                String response = String.format("@@%c%02d,%s,%s", dataId, length, imei, content);
-                response += Checksum.sum(response) + "\r\n";
-                LOGGER.info("Meitrack Command:" + response + "," + BufferUtil.toHexString(tempset));
-                channel.writeAndFlush(new NetworkMessage(response, socketAddress));
+    private Position decodeCommandResultC42(Channel channel, SocketAddress remoteAddress,
+            ByteBuf buf, int index, String imei) {
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(getDeviceSession(channel, remoteAddress, imei).getDeviceId());
+        getLastLocation(position, null);
+
+        // SN and number are binary, entries are separated by ','
+        int start = index + 5;
+        int count = (binaryPayloadEnd(buf) - start + 1) / (TEMPERATURE_SENSOR_ENTRY + 1);
+        if (count <= 0) {
+            return null;
         }
+
+        List<ByteBuf> sensors = new LinkedList<>();
+        boolean[] used = new boolean[256];
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            ByteBuf sensor = buf.slice(start + i * (TEMPERATURE_SENSOR_ENTRY + 1), TEMPERATURE_SENSOR_ENTRY);
+            sensors.add(sensor);
+            used[sensor.getUnsignedByte(8)] = true;
+            if (i > 0) {
+                result.append(",");
+            }
+            result.append("Temp").append(i + 1).append(":").append(ByteBufUtil.hexDump(sensor));
+        }
+        LOGGER.info("MSG C42: " + imei + "," + result);
+
+        List<ByteBuf> unregistered = new LinkedList<>();
+        int number = 1;
+        for (ByteBuf sensor : sensors) {
+            if (sensor.getUnsignedByte(8) == 0) {
+                while (used[number]) {
+                    number += 1;
+                }
+                ByteBuf entry = Unpooled.copiedBuffer(sensor);
+                entry.setByte(8, number);
+                used[number] = true;
+                unregistered.add(entry);
+            }
+        }
+        registerTemperatureSensors(channel, remoteAddress, imei, unregistered);
+
+        position.set(Position.KEY_RESULT, result.toString());
+        return position;
+    }
+
+    private void registerTemperatureSensors(
+            Channel channel, SocketAddress remoteAddress, String imei, List<ByteBuf> sensors) {
+        if (channel == null || sensors.isEmpty()) {
+            sensors.forEach(ByteBuf::release);
+            return;
+        }
+        ByteBuf content = Unpooled.buffer();
+        content.writeCharSequence("C40", StandardCharsets.US_ASCII);
+        for (ByteBuf sensor : sensors) {
+            content.writeByte(',');
+            content.writeBytes(sensor);
+            sensor.release();
+        }
+
+        // binary SN must not go through String conversion, bytes >= 0x80 would be replaced
+        int length = 1 + imei.length() + 1 + content.readableBytes() + 5;
+        ByteBuf response = Unpooled.buffer();
+        response.writeCharSequence(String.format("@@%c%02d,%s,",
+                MeitrackProtocolEncoder.randomASCII(), length, imei), StandardCharsets.US_ASCII);
+        response.writeBytes(content);
+        content.release();
+        response.writeByte('*');
+        int checksum = 0;
+        for (int i = response.readerIndex(); i < response.writerIndex(); i++) {
+            checksum += response.getUnsignedByte(i);
+        }
+        response.writeCharSequence(String.format("%02X\r\n", checksum & 0xFF), StandardCharsets.US_ASCII);
+        LOGGER.info("Meitrack Command: " + ByteBufUtil.hexDump(response));
+        channel.writeAndFlush(new NetworkMessage(response, remoteAddress));
+    }
+
+    private Position decodeCommandResultC40(Channel channel, SocketAddress remoteAddress,
+            ByteBuf buf, int index, String imei) {
+        Position position = new Position(getProtocolName());
+        position.setDeviceId(getDeviceSession(channel, remoteAddress, imei).getDeviceId());
+        getLastLocation(position, null);
+
+        // SN (8 bytes) + number (1 byte) + result (1 byte: 1 ok, 2 exists, 3 all registered, 4 failed)
+        int start = index + 5;
+        int count = (binaryPayloadEnd(buf) - start + 1) / (TEMPERATURE_SENSOR_ENTRY + 2);
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            int offset = start + i * (TEMPERATURE_SENSOR_ENTRY + 2);
+            if (i > 0) {
+                result.append(",");
+            }
+            result.append("Temp").append(buf.getUnsignedByte(offset + 8)).append(":")
+                    .append(ByteBufUtil.hexDump(buf, offset, 8)).append(":")
+                    .append(buf.getUnsignedByte(offset + 9));
+        }
+        LOGGER.info("MSG C40: " + imei + "," + result);
+        position.set(Position.KEY_RESULT, result.toString());
+        return position;
     }
 
     @Override
@@ -947,6 +1010,9 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
             case "AAA" -> {
                 yield decodeRegular(channel, remoteAddress, buf);
             }
+            case "C40" -> command.equals("$$")
+                    ? decodeCommandResultC40(channel, remoteAddress, buf, index, imei)
+                    : decodeCommandSend(channel, remoteAddress, buf, index, imei);
             case "C42" -> {
                 LOGGER.info("MSG Data: " + buf.toString(StandardCharsets.US_ASCII));
                 if (command.equals("$$")) {
