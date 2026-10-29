@@ -26,6 +26,7 @@ import org.traccar.BaseProtocolDecoder;
 import org.traccar.session.DeviceSession;
 import org.traccar.NetworkMessage;
 import org.traccar.Protocol;
+import org.traccar.config.Keys;
 import org.traccar.helper.Checksum;
 import org.traccar.helper.Parser;
 import org.traccar.helper.PatternBuilder;
@@ -40,7 +41,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
@@ -143,7 +146,8 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
 
         Position position = new Position(getProtocolName());
 
-        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, parser.next());
+        String imei = parser.next();
+        DeviceSession deviceSession = getDeviceSession(channel, remoteAddress, imei);
         if (deviceSession == null) {
             return null;
         }
@@ -278,6 +282,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
         }
         }
 
+        boolean hasTemperature = false;
         if (parser.hasNext()) {
             String temps = parser.next();
             if (temps != null && !temps.isEmpty()) {
@@ -285,6 +290,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
                     if (temp.length() < 6) { // expect at least index (2) + value (4)
                         continue;
                     }
+                    hasTemperature = true;
                     int index = Integer.parseInt(temp.substring(0, 2), 16);
                     if (protocol >= 3 && protocol < 100) {
                         double value = (short) Integer.parseInt(temp.substring(2, 6), 16);
@@ -376,7 +382,66 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
             LOGGER.warn("Extended ASCII tail parse failed: {}", e.getMessage());
         }
 
+        handleSensorSn(channel, remoteAddress, deviceSession, imei, position, hasTemperature);
+
         return position;
+    }
+
+    public static final String KEY_TEMP_SN = "tempSn";
+
+    private static final class SensorSnState {
+        private String sn;
+        private Long requested;
+        private Long pending;
+        private Boolean temperature;
+    }
+
+    private final Map<Long, SensorSnState> sensorSnStates = new ConcurrentHashMap<>();
+
+    private static final long SENSOR_SN_TIMEOUT = 60 * 1000;
+
+    /**
+     * Temperature sensor SN is used to pair tractor and trailer devices sharing the same sensor. AAA data does not
+     * include the SN, so C42 is requested on connect, every interval and when temperature data appears. No C42 reply
+     * within timeout, or temperature data disappearing, means the sensor is disconnected and empty SN is reported.
+     */
+    private void handleSensorSn(
+            Channel channel, SocketAddress remoteAddress, DeviceSession deviceSession, String imei,
+            Position position, boolean hasTemperature) {
+
+        long interval = getConfig().getLong(Keys.PROTOCOL_SENSOR_SN_INTERVAL.withPrefix(getProtocolName())) * 1000;
+        if (interval <= 0) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        SensorSnState state = sensorSnStates.computeIfAbsent(deviceSession.getDeviceId(), k -> new SensorSnState());
+        Boolean hadTemperature = state.temperature;
+        state.temperature = hasTemperature;
+
+        if (state.pending != null && now - state.pending > SENSOR_SN_TIMEOUT) {
+            state.sn = "";
+            state.pending = null;
+        }
+        if (Boolean.TRUE.equals(hadTemperature) && !hasTemperature) {
+            state.sn = "";
+        }
+
+        boolean temperatureAppeared = Boolean.FALSE.equals(hadTemperature) && hasTemperature;
+        if (channel != null && (state.requested == null || now - state.requested >= interval || temperatureAppeared)) {
+            String request = String.format("@@%c%02d,%s,C42*",
+                    MeitrackProtocolEncoder.randomASCII(), 1 + imei.length() + 1 + 3 + 5, imei);
+            request += Checksum.sum(request) + "\r\n";
+            channel.writeAndFlush(new NetworkMessage(request, remoteAddress));
+            state.requested = now;
+            if (state.pending == null) {
+                state.pending = now;
+            }
+        }
+
+        if (state.sn != null) {
+            position.getAttributes().put(KEY_TEMP_SN, state.sn); // empty value means sensor disconnected
+        }
     }
 
     private void decodeDataFields(Position position, String[] values) {
@@ -832,16 +897,24 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
         List<ByteBuf> sensors = new LinkedList<>();
         boolean[] used = new boolean[256];
         StringBuilder result = new StringBuilder();
+        StringBuilder sn = new StringBuilder();
         for (int i = 0; i < count; i++) {
             ByteBuf sensor = buf.slice(start + i * (TEMPERATURE_SENSOR_ENTRY + 1), TEMPERATURE_SENSOR_ENTRY);
             sensors.add(sensor);
             used[sensor.getUnsignedByte(8)] = true;
             if (i > 0) {
                 result.append(",");
+                sn.append(",");
             }
             result.append("Temp").append(i + 1).append(":").append(ByteBufUtil.hexDump(sensor));
+            sn.append(ByteBufUtil.hexDump(sensor, 0, 8));
         }
         LOGGER.info("MSG C42: " + imei + "," + result);
+
+        SensorSnState state = sensorSnStates.computeIfAbsent(position.getDeviceId(), k -> new SensorSnState());
+        state.sn = sn.toString();
+        state.pending = null;
+        position.set(KEY_TEMP_SN, sn.toString());
 
         List<ByteBuf> unregistered = new LinkedList<>();
         int number = 1;

@@ -60,6 +60,15 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Interval in seconds for requesting temperature sensor SN (Meitrack C42) used for tractor and trailer pairing.
+     * Zero disables the requests.
+     */
+    public static final ConfigSuffix<Long> PROTOCOL_SENSOR_SN_INTERVAL = new LongConfigSuffix(
+            ".sensorSnInterval",
+            List.of(KeyType.CONFIG),
+            300L);
+
+    /**
      * Connection timeout value in seconds. Because sometimes there is no way to detect lost TCP connection old
      * connections stay in open state. On most systems there is a limit on number of open connection, so this leads to
      * problems with establishing new connections when number of devices is high or devices data connections are
