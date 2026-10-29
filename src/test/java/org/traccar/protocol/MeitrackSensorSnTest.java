@@ -58,4 +58,25 @@ public class MeitrackSensorSnTest extends ProtocolTest {
 
     }
 
+    @Test
+    public void testRegistrationRetry() throws Exception {
+
+        var decoder = inject(new MeitrackProtocolDecoder(null));
+        var channel = new EmbeddedChannel();
+
+        // number 01 already used by a disconnected sensor, retry with 02
+        Position position = (Position) decoder.decode(channel, null, binary(
+                "24244a33362c3836383939383033303337323233352c4334302c28e1c8811000000001022a43450d0a"));
+        assertEquals("Temp1:28e1c88110000000:2", position.getString(Position.KEY_RESULT));
+        Object message = channel.readOutbound();
+        String hex = io.netty.buffer.ByteBufUtil.hexDump((io.netty.buffer.ByteBuf) ((NetworkMessage) message).getMessage());
+        assertTrue(hex.contains("4334302c28e1c88110000000022a"), hex);
+
+        // number limit reached, no retry
+        decoder.decode(channel, null, binary(
+                "24244a33362c3836383939383033303337323233352c4334302c28e1c8811000000008022a43450d0a"));
+        assertNull(channel.readOutbound());
+
+    }
+
 }
