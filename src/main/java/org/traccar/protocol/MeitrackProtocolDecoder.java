@@ -27,6 +27,7 @@ import org.traccar.session.DeviceSession;
 import org.traccar.NetworkMessage;
 import org.traccar.Protocol;
 import org.traccar.config.Keys;
+import org.traccar.helper.BitUtil;
 import org.traccar.helper.Checksum;
 import org.traccar.helper.Parser;
 import org.traccar.helper.PatternBuilder;
@@ -136,6 +137,14 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
         };
     }
 
+    private void decodeTrailer(Position position, int event) {
+        if (event == 2) {
+            position.set("trailer", true);
+        } else if (event == 10) {
+            position.set("trailer", false);
+        }
+    }
+
     private Position decodeRegular(Channel channel, SocketAddress remoteAddress, ByteBuf buf) {
         String original = buf.toString(StandardCharsets.US_ASCII);
         LOGGER.debug("MSG decodeRegular: " + original);
@@ -157,6 +166,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
         int event = parser.nextInt();
         position.set(Position.KEY_EVENT, event);
         position.addAlarm(decodeAlarm(event));
+        decodeTrailer(position, event);
 
         position.setLatitude(parser.nextDouble());
         position.setLongitude(parser.nextDouble());
@@ -187,11 +197,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
         }
         int input = parser.nextHexInt();
         position.set(Position.KEY_INPUT, input);
-        if (input == 4) {
-            position.set(Position.KEY_IGNITION, true);
-        } else {
-            position.set(Position.KEY_IGNITION, false);
-        }
+        position.set(Position.KEY_IGNITION, BitUtil.check(input, 2));
         position.set(Position.KEY_OUTPUT, parser.nextHexInt());
 
         if (parser.hasNext(2)) {
@@ -579,6 +585,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
                         position.set(Position.KEY_EVENT, event);
                         // Set alarm based on event using decodeAlarm
                         position.addAlarm(decodeAlarm(event));
+                        decodeTrailer(position, event);
                     }
                     case 0x05 -> position.setValid(buf.readUnsignedByte() > 0);
                     case 0x06 -> position.set(Position.KEY_SATELLITES, buf.readUnsignedByte());
@@ -587,11 +594,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
                     case 0x15 -> {
                         int input = buf.readUnsignedByte();
                         position.set(Position.KEY_INPUT, input);
-                        if (input == 2 || input == 4) {
-                            position.set(Position.KEY_IGNITION, true);
-                        } else {
-                            position.set(Position.KEY_IGNITION, false);
-                        }
+                        position.set(Position.KEY_IGNITION, BitUtil.check(input, 2));
                     }
                     case 0x47 -> {
                         int lockState = buf.readUnsignedByte();
@@ -624,6 +627,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
                         event = buf.readUnsignedShortLE();
                         position.set(Position.KEY_EVENT, event);
                         position.addAlarm(decodeAlarm(event));
+                        decodeTrailer(position, event);
                     }
                     case 0x91, 0x92 -> position.set(Position.KEY_OBD_SPEED, buf.readUnsignedShortLE());
                     case 0x98 -> position.set(Position.KEY_FUEL_USED, buf.readUnsignedShortLE());
