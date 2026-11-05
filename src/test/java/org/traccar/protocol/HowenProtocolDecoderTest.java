@@ -176,4 +176,25 @@ public class HowenProtocolDecoderTest extends ProtocolTest {
         assertNotNull(position.getAttributes().get("doorLeftBack"));
         assertNotNull(position.getAttributes().get("doorRightBack"));
     }
+
+    @Test
+    public void testVoltageStatus() throws Exception {
+
+        var decoder = inject(new HowenProtocolDecoder(null));
+
+        decoder.decode(null, null, binary(
+                "48010110c80000007b226170223a22222c226174223a2231222c22646e223a223238303831313032222c226474223a22307834303030222c22647475223a22323031382d30392d31322032303a31383a3134222c2267756964223a2236423842343536372d32334336333237422d41393938334336342d3733343833333636222c226d62223a223238303831313032222c227373223a2236423842343536372d32334336333237422d41393938334336342d3733343833333636222c22766572223a22563138303832394230227d0a00"));
+
+        // content bit13 only: [count=4][length=8][vcc 23.70][bat 11.60][vo1 0.034][vo2 2.589]
+        Position position = (Position) decoder.decode(null, null, binary(
+                "4801411014000000001a0b05112a1e00200408004209880422001d0a"));
+
+        assertNotNull(position);
+        assertEquals(8, position.getInteger("voltage.length"));
+        assertEquals(23.70, position.getDouble("voltage.vcc"), 0.001);
+        assertEquals(11.60, position.getDouble("voltage.bat"), 0.001);
+        assertEquals(0.034, position.getDouble("voltage.vo1"), 0.0001);
+        assertEquals(2.589, position.getDouble("voltage.vo2"), 0.0001);
+    }
+
 }

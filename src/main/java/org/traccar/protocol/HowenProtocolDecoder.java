@@ -1828,8 +1828,8 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         } else if (buf.readableBytes() >= 3) {
             int count = buf.getUnsignedByte(buf.readerIndex());
             // sanity check
-            if (count > 0 && count <= 4 && buf.readableBytes() >= 1 + count * 2) {
-                int raw = buf.getUnsignedShortLE(buf.readerIndex() + 1);
+            if (count > 0 && count <= 4 && buf.readableBytes() >= 3 + count * 2) {
+                int raw = buf.getUnsignedShortLE(buf.readerIndex() + 3);
                 double voltage = raw / 100.0;
                 // filter ค่าให้สมจริง (รถทั่วไป)
                 if (voltage > 5 && voltage < 60) {
@@ -2423,39 +2423,33 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
 
     private void decodeVoltageStatus(Position position, ByteBuf buf) {
 
-        if (!buf.isReadable()) {
+        // [count:1][length:2][value0..valueN-1:2 each]
+        // [0] device voltage, [1] super capacitor voltage (*100), [2] analog 1, [3] analog 2 (*1000)
+        if (buf.readableBytes() < 3) {
             return;
         }
-        int count = buf.readUnsignedByte(); // ✔ ตัวนี้คือ count
-        LOGGER.info("Voltage count={}", count);
+        int count = buf.readUnsignedByte();
+        int length = buf.readUnsignedShortLE();
+        LOGGER.info("Voltage count={}, length={}", count, length);
+        position.set("voltage.length", length);
         if (buf.readableBytes() < count * 2) {
             LOGGER.warn("VoltageStatus: not enough data");
             return;
         }
         for (int i = 0; i < count; i++) {
             int raw = buf.readUnsignedShortLE();
-            double value;
-            if (i == 0) {
-                value = raw;            // Length
-            } else if (i < 3) {
-                value = raw / 100.0;   // Voltage
-            } else {
-                value = raw / 1000.0;  // Analog
-            }
+            double value = i < 2 ? raw / 100.0 : raw / 1000.0;
             switch (i) {
                 case 0:
-                    position.set("voltage.length", value);
-                    break;
-                case 1:
                     position.set("voltage.vcc", value);
                     break;
-                case 2:
+                case 1:
                     position.set("voltage.bat", value);
                     break;
-                case 3:
+                case 2:
                     position.set("voltage.vo1", value);
                     break;
-                case 4:
+                case 3:
                     position.set("voltage.vo2", value);
                     break;
                 default:
