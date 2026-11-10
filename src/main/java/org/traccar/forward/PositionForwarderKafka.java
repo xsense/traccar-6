@@ -52,10 +52,7 @@ public class PositionForwarderKafka implements PositionForwarder {
     public void forward(PositionData positionData, ResultHandler resultHandler) {
         try {
             String key = Long.toString(positionData.getDevice().getId());
-            String value = objectMapper.writeValueAsString(positionData)
-                    .replaceAll("\"\\{", "\\{")
-                    .replaceAll("}\"", "}")
-                    .replaceAll("\\\\", "");
+            String value = KafkaPayloadSerializer.serialize(objectMapper, positionData);
             LOGGER.debug("Forwarding position to Kafka topic {}: key={}, value={}", topic, key, value);
             producer.send(new ProducerRecord<>(topic, key, value));
             resultHandler.onResult(true, null);

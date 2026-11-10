@@ -50,10 +50,7 @@ public class EventForwarderKafka implements EventForwarder {
     public void forward(EventData eventData, ResultHandler resultHandler) {
         try {
             String key = Long.toString(eventData.getDevice().getId());
-            String value = objectMapper.writeValueAsString(eventData)
-                    .replaceAll("\"\\{", "\\{")
-                    .replaceAll("}\"", "}")
-                    .replaceAll("\\\\", "");
+            String value = KafkaPayloadSerializer.serialize(objectMapper, eventData);
             LOGGER.debug("Forwarding event to Kafka topic {}: key={}, value={}", topic, key, value);
             producer.send(new ProducerRecord<>(topic, key, value));
             resultHandler.onResult(true, null);
