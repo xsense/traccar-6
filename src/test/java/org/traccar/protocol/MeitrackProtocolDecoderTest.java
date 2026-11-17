@@ -16,6 +16,10 @@ public class MeitrackProtocolDecoderTest extends ProtocolTest {
         var decoder = inject(new MeitrackProtocolDecoder(null));
 
         verifyAttribute(decoder, buffer(
+                "$$R233,868998030372235,AAA,28,13.905005,100.529868,261112094247,A,4,13,1,0,4.2,42,138938,4499605,520|3|2337|028CDC97,0600,0000|0000|0000|0182|0422,,0|0|0|0|0|0|0|0,108,0000,01171F,3,0,,0|0000|0000|0000|0000|0000,ACC|540|880,BUF|0|8192*2F"),
+                Position.KEY_ALARM, Position.ALARM_GPS_ANTENNA_CUT);
+
+        verifyAttribute(decoder, buffer(
                 "$$Q233,868998030372235,AAA,2,13.904716,100.529505,261102050323,V,0,16,0,0,2.8,177,117505,3906738,520|3|2337|028C9878,0600,0000|0000|0000|0187|0962,,2|0|6|0|0|0|0|0,108,0000,021712,3,0,,0|0000|0000|0000|0000|0000,ACC|178|288,BUF|0|8192*1B"),
                 Position.KEY_IGNITION, true);
 
