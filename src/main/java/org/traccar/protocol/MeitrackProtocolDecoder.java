@@ -126,6 +126,7 @@ public class MeitrackProtocolDecoder extends BaseProtocolDecoder {
             case 21 -> Position.ALARM_GEOFENCE_EXIT;
             case 22 -> Position.ALARM_POWER_RESTORED;
             case 23 -> Position.ALARM_POWER_CUT;
+            case 28 -> Position.ALARM_GPS_ANTENNA_CUT;
             case 36 -> Position.ALARM_TOW;
             case 44 -> Position.ALARM_JAMMING;
             case 78 -> Position.ALARM_ACCIDENT;
