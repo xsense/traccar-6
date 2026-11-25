@@ -1,9 +1,13 @@
 package org.traccar.protocol;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 import org.traccar.ProtocolTest;
 import org.traccar.model.Position;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -195,6 +199,74 @@ public class HowenProtocolDecoderTest extends ProtocolTest {
         assertEquals(11.60, position.getDouble("voltage.bat"), 0.001);
         assertEquals(0.034, position.getDouble("voltage.vo1"), 0.0001);
         assertEquals(2.589, position.getDouble("voltage.vo2"), 0.0001);
+    }
+
+    private static final String REGISTRATION =
+            "48010110c80000007b226170223a22222c226174223a2231222c22646e223a223238303831313032222c226474223a22307834303030222c22647475223a22323031382d30392d31322032303a31383a3134222c2267756964223a2236423842343536372d32334336333237422d41393938334336342d3733343833333636222c226d62223a223238303831313032222c227373223a2236423842343536372d32334336333237422d41393938334336342d3733343833333636222c22766572223a22563138303832394230227d0a00";
+
+    /** Builds an alarm frame (0x1051) with an empty session and the given JSON content, no status data. */
+    private static String alarmFrame(String json) {
+        byte[] content = (json + "\n\0").getBytes(StandardCharsets.UTF_8);
+        ByteBuf payload = Unpooled.buffer();
+        payload.writeByte(0); // session length
+        payload.writeIntLE(content.length);
+        payload.writeBytes(content);
+        ByteBuf frame = Unpooled.buffer();
+        frame.writeByte(0x48).writeByte(0x01).writeShortLE(0x1051).writeIntLE(payload.readableBytes());
+        frame.writeBytes(payload);
+        return ByteBufUtil.hexDump(frame);
+    }
+
+    @Test
+    public void testAlarmDetailStringValues() throws Exception {
+
+        var decoder = inject(new HowenProtocolDecoder(null));
+        decoder.decode(null, null, binary(REGISTRATION));
+
+        // SWIT-574: door abnormal from device 105073336280, det values are JSON strings
+        Position door = (Position) decoder.decode(null, null, binary(alarmFrame(
+                "{\"det\":{\"st\":\"0\",\"ch\":\"19\",\"num\":\"3\"},\"dtu\":\"2026-11-25 11:09:11\","
+                        + "\"ec\":\"15\",\"st\":\"2026-11-25 11:09:07\"}")));
+        assertNotNull(door);
+        assertEquals(15, door.getInteger(Position.KEY_EVENT));
+        assertEquals(Position.ALARM_DOOR, door.getString(Position.KEY_ALARM));
+        assertEquals("close", door.getString("doorStatus"));
+        assertEquals(19, door.getInteger("doorChannel"));
+        assertEquals("{\"st\":\"0\",\"ch\":\"19\",\"num\":\"3\"}", door.getString("alarmDetail"));
+
+        Position doorOpen = (Position) decoder.decode(null, null, binary(alarmFrame(
+                "{\"det\":{\"st\":\"1\",\"ch\":\"20\"},\"dtu\":\"2026-11-25 11:09:04\",\"ec\":\"15\"}")));
+        assertEquals("open", doorOpen.getString("doorStatus"));
+        assertEquals(20, doorOpen.getInteger("doorChannel"));
+
+        // numeric (non-string) values keep working
+        Position doorNumeric = (Position) decoder.decode(null, null, binary(alarmFrame(
+                "{\"det\":{\"st\":1,\"ch\":2},\"dtu\":\"2026-11-25 11:09:04\",\"ec\":\"15\"}")));
+        assertEquals("open", doorNumeric.getString("doorStatus"));
+        assertEquals(2, doorNumeric.getInteger("doorChannel"));
+
+        Position videoLoss = (Position) decoder.decode(null, null, binary(alarmFrame(
+                "{\"det\":{\"ch\":\"1\"},\"dtu\":\"2026-11-25 11:09:04\",\"ec\":\"1\"}")));
+        assertEquals(1, videoLoss.getInteger("videoLossChannel"));
+        assertEquals("videoLoss", videoLoss.getString(Position.KEY_ALARM));
+
+        Position input = (Position) decoder.decode(null, null, binary(alarmFrame(
+                "{\"det\":{\"ch\":\"3\"},\"dtu\":\"2026-11-25 11:09:04\",\"ec\":\"4\"}")));
+        assertEquals(3, input.getInteger("inputChannel"));
+    }
+
+    @Test
+    public void testAlarmDetailNotObject() throws Exception {
+
+        var decoder = inject(new HowenProtocolDecoder(null));
+        decoder.decode(null, null, binary(REGISTRATION));
+
+        // a non-object det must not abort decoding of the alarm
+        Position door = (Position) decoder.decode(null, null, binary(alarmFrame(
+                "{\"det\":\"\",\"dtu\":\"2026-11-25 11:09:04\",\"ec\":\"15\"}")));
+        assertNotNull(door);
+        assertEquals(Position.ALARM_DOOR, door.getString(Position.KEY_ALARM));
+        assertFalse(door.hasAttribute("doorStatus"));
     }
 
 }
