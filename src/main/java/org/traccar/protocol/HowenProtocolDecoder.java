@@ -22,6 +22,7 @@ import jakarta.json.JsonArray;
 import jakarta.json.JsonNumber;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonObjectBuilder;
+import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -306,10 +307,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Overtime driving (fatigue)
                 position.addAlarm(Position.ALARM_FATIGUE_DRIVING);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("dt")) {
                         try {
-                            int duration = detail.getInt("dt");
+                            int duration = detInt(detail, "dt");
                             position.set("drivingTime", duration);
                         } catch (Exception ignored) {
                         }
@@ -336,10 +337,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Excessive overspeed
                 position.addAlarm(Position.ALARM_OVERSPEED);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            double speed = detail.getJsonNumber("spd").doubleValue();
+                            double speed = detDouble(detail, "spd");
                             position.set("alarmSpeed", speed);
                         } catch (Exception ignored) {
                         }
@@ -352,12 +353,12 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.addAlarm(Position.ALARM_ALCOHOL);
                 position.set("alcoholDetected", true);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     LOGGER.info("Alcohol alarm detail: {}", detail.toString());
                     position.set("alcohol", detail.toString());
                     if (detail.containsKey("cur")) {
                         try {
-                            double alcoholLevel = detail.getJsonNumber("cur").doubleValue();
+                            double alcoholLevel = detDouble(detail, "cur");
                             position.set("alcoholLevel", alcoholLevel);
                         } catch (Exception ignored) {
                         }
@@ -368,7 +369,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "22":
                 // Driver unique ID / Swipe card
                 try {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     String value = detail.getString("cn", null);
                     if (value != null && !value.isEmpty()) {
                         // Clean the driver ID: remove whitespace, line breaks, and $0$I markers
@@ -384,7 +385,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     }
                     // Extract tp (card type) if available
                     if (detail.containsKey("tp")) {
-                        position.set("cardType", detail.getInt("tp"));
+                        position.set("cardType", detInt(detail, "tp"));
                     }
                 } catch (Exception e) {
                     LOGGER.warn("Failed to parse driver unique ID", e);
@@ -416,7 +417,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set(Position.KEY_STATUS, "TRIP_START");
                 position.set("tripState", "start");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("tid")) {
                         try {
                             position.set("tripId", detail.getString("tid"));
@@ -425,7 +426,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     }
                     if (detail.containsKey("odo")) {
                         try {
-                            double odometer = detail.getJsonNumber("odo").doubleValue();
+                            double odometer = detDouble(detail, "odo");
                             position.set(Position.KEY_ODOMETER, odometer * 1000); // Convert km to meters
                         } catch (Exception ignored) {
                         }
@@ -438,7 +439,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set(Position.KEY_STATUS, "TRIP_IN_PROGRESS");
                 position.set("tripState", "in_progress");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("tid")) {
                         try {
                             position.set("tripId", detail.getString("tid"));
@@ -453,7 +454,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set(Position.KEY_STATUS, "TRIP_END");
                 position.set("tripState", "end");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("tid")) {
                         try {
                             position.set("tripId", detail.getString("tid"));
@@ -462,21 +463,21 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     }
                     if (detail.containsKey("dur")) {
                         try {
-                            int duration = detail.getInt("dur"); // Duration in seconds
+                            int duration = detInt(detail, "dur"); // Duration in seconds
                             position.set("tripDuration", duration);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("dst")) {
                         try {
-                            double distance = detail.getJsonNumber("dst").doubleValue();
+                            double distance = detDouble(detail, "dst");
                             position.set("tripDistance", distance * 1000); // Convert km to meters
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("odo")) {
                         try {
-                            double odometer = detail.getJsonNumber("odo").doubleValue();
+                            double odometer = detDouble(detail, "odo");
                             position.set(Position.KEY_ODOMETER, odometer * 1000); // Convert km to meters
                         } catch (Exception ignored) {
                         }
@@ -489,10 +490,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set(Position.KEY_STATUS, "POST_TRIP_REPORT");
                 position.set("tripState", "post_trip");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("dur")) {
                         try {
-                            int duration = detail.getInt("dur"); // Time since trip ended
+                            int duration = detInt(detail, "dur"); // Time since trip ended
                             position.set("postTripDuration", duration);
                         } catch (Exception ignored) {
                         }
@@ -504,7 +505,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "13":
                 // Geofence alarm with multiple sub-types
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     int subType = -1;
                     Integer st = parseJsonInt(detail, "st");
                     if (st != null) {
@@ -579,14 +580,14 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                             position.set("geofenceEvent", "overspeed");
                             if (detail.containsKey("spd")) {
                                 try {
-                                    double speed = detail.getJsonNumber("spd").doubleValue();
+                                    double speed = detDouble(detail, "spd");
                                     position.set("alarmSpeed", speed);
                                 } catch (Exception ignored) {
                                 }
                             }
                             if (detail.containsKey("lmt")) {
                                 try {
-                                    double limit = detail.getJsonNumber("lmt").doubleValue();
+                                    double limit = detDouble(detail, "lmt");
                                     position.set("speedLimit", limit);
                                 } catch (Exception ignored) {
                                 }
@@ -597,7 +598,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                             position.set("geofenceEvent", "dwell");
                             if (detail.containsKey("dur")) {
                                 try {
-                                    int duration = detail.getInt("dur");
+                                    int duration = detInt(detail, "dur");
                                     position.set("dwellDuration", duration);
                                 } catch (Exception ignored) {
                                 }
@@ -623,7 +624,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Electronic route (route planning/navigation)
                 position.set(Position.KEY_ALARM, "electronicRoute");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("rid")) {
                         try {
                             position.set("routeId", detail.getString("rid"));
@@ -638,7 +639,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     }
                     if (detail.containsKey("tp")) {
                         try {
-                            position.set("routeType", detail.getInt("tp"));
+                            position.set("routeType", detInt(detail, "tp"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -650,17 +651,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.addAlarm(Position.ALARM_DOOR);
                 position.set("doorEvent", "abnormal");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("st")) {
                         try {
-                            int status = detail.getInt("st");
+                            int status = detInt(detail, "st");
                             position.set("doorStatus", status == 1 ? "open" : "close");
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("ch")) {
                         try {
-                            position.set("doorChannel", detail.getInt("ch"));
+                            position.set("doorChannel", detInt(detail, "ch"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -671,10 +672,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "1":
                 // Video loss alarm
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("videoLossChannel", channel);
                             position.set(Position.KEY_ALARM, "videoLoss");
                         } catch (Exception ignored) {
@@ -688,10 +689,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "2":
                 // Motion detection alarm
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("motionChannel", channel);
                         } catch (Exception ignored) {
                         }
@@ -703,10 +704,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "3":
                 // Video cover (camera lens covered/blocked)
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("videoCoverChannel", channel);
                         } catch (Exception ignored) {
                         }
@@ -718,10 +719,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "4":
                 // Input trigger alarm (IO channels 0-8)
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("inputChannel", channel);
                             position.set(Position.KEY_INPUT, 1 << channel); // Set bit for the channel
                         } catch (Exception ignored) {
@@ -734,7 +735,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "12":
                 // G-sensor alarm with sub-types
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     int subType = -1;
                     Integer tp = parseJsonInt(detail, "tp");
                     if (tp != null) {
@@ -782,19 +783,19 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract G-sensor values if available
                     if (detail.containsKey("x")) {
                         try {
-                            position.set("gSensorX", detail.getJsonNumber("x").doubleValue());
+                            position.set("gSensorX", detDouble(detail, "x"));
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("y")) {
                         try {
-                            position.set("gSensorY", detail.getJsonNumber("y").doubleValue());
+                            position.set("gSensorY", detDouble(detail, "y"));
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("z")) {
                         try {
-                            position.set("gSensorZ", detail.getJsonNumber("z").doubleValue());
+                            position.set("gSensorZ", detDouble(detail, "z"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -808,10 +809,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.addAlarm(Position.ALARM_FAULT);
                 position.set("faultType", "video_abnormal");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("videoChannel", channel);
                         } catch (Exception ignored) {
                         }
@@ -829,16 +830,16 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Low speed alarm
                 position.addAlarm(Position.ALARM_LOW_SPEED);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            position.set("alarmSpeed", detail.getJsonNumber("spd").doubleValue());
+                            position.set("alarmSpeed", detDouble(detail, "spd"));
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            position.set("speedLimit", detail.getJsonNumber("lmt").doubleValue());
+                            position.set("speedLimit", detDouble(detail, "lmt"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -849,17 +850,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Over speed alarm
                 position.addAlarm(Position.ALARM_OVERSPEED);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            double speed = detail.getJsonNumber("spd").doubleValue();
+                            double speed = detDouble(detail, "spd");
                             position.set("alarmSpeed", speed);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double limit = detail.getJsonNumber("lmt").doubleValue();
+                            double limit = detDouble(detail, "lmt");
                             position.set("speedLimit", limit);
                         } catch (Exception ignored) {
                         }
@@ -872,24 +873,24 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set(Position.KEY_ALARM, "temperatureLow");
                 position.set("temperatureEvent", "low");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("val")) {
                         try {
-                            double temp = detail.getJsonNumber("val").doubleValue();
+                            double temp = detDouble(detail, "val");
                             position.set(Position.PREFIX_TEMP + 1, temp);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("temperatureChannel", channel);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double limit = detail.getJsonNumber("lmt").doubleValue();
+                            double limit = detDouble(detail, "lmt");
                             position.set("temperatureLimit", limit);
                         } catch (Exception ignored) {
                         }
@@ -902,24 +903,24 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.set(Position.KEY_ALARM, "temperatureHigh");
                 position.set("temperatureEvent", "high");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("val")) {
                         try {
-                            double temp = detail.getJsonNumber("val").doubleValue();
+                            double temp = detDouble(detail, "val");
                             position.set(Position.PREFIX_TEMP + 1, temp);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("temperatureChannel", channel);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double limit = detail.getJsonNumber("lmt").doubleValue();
+                            double limit = detDouble(detail, "lmt");
                             position.set("temperatureLimit", limit);
                         } catch (Exception ignored) {
                         }
@@ -931,17 +932,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Humidity alarm
                 position.set(Position.KEY_ALARM, "humidity");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("val")) {
                         try {
-                            double humidity = detail.getJsonNumber("val").doubleValue();
+                            double humidity = detDouble(detail, "val");
                             position.set(Position.KEY_HUMIDITY, humidity);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double limit = detail.getJsonNumber("lmt").doubleValue();
+                            double limit = detDouble(detail, "lmt");
                             position.set("humidityLimit", limit);
                         } catch (Exception ignored) {
                         }
@@ -953,10 +954,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Parking overtime alarm
                 position.set(Position.KEY_ALARM, "parkingOvertime");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("dur")) {
                         try {
-                            position.set("parkingDuration", detail.getInt("dur"));
+                            position.set("parkingDuration", detInt(detail, "dur"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -968,7 +969,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.addAlarm(Position.ALARM_FAULT);
                 position.set("faultType", "storage_abnormal");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     int subType = -1;
                     Integer st = parseJsonInt(detail, "st");
                     if (st != null) {
@@ -1046,7 +1047,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract additional storage info if available
                     if (detail.containsKey("ch")) {
                         try {
-                            position.set("storageChannel", detail.getInt("ch"));
+                            position.set("storageChannel", detInt(detail, "ch"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -1057,7 +1058,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Fuel consumption abnormal
                 position.set(Position.KEY_ALARM, "fuelAbnormal");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     int subType = -1;
                     Integer dt = parseJsonInt(detail, "dt");
                     if (dt != null) {
@@ -1084,7 +1085,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract fuel level if available
                     if (detail.containsKey("val")) {
                         try {
-                            double fuelLevel = detail.getJsonNumber("val").doubleValue();
+                            double fuelLevel = detDouble(detail, "val");
                             position.set(Position.KEY_FUEL_LEVEL, fuelLevel);
                         } catch (Exception ignored) {
                         }
@@ -1108,7 +1109,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // IBUTTON (driver identification)
                 position.set(Position.KEY_DRIVER_UNIQUE_ID, "ibutton");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("cn")) {
                         try {
                             String cardNumber = detail.getString("cn");
@@ -1124,17 +1125,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Low speed warning
                 position.addAlarm(Position.ALARM_LOW_SPEED);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            double speed = detail.getJsonNumber("spd").doubleValue();
+                            double speed = detDouble(detail, "spd");
                             position.set("alarmSpeed", speed);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double speedLimit = detail.getJsonNumber("lmt").doubleValue();
+                            double speedLimit = detDouble(detail, "lmt");
                             position.set("speedLimit", speedLimit);
                         } catch (Exception ignored) {
                         }
@@ -1146,17 +1147,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // High speed warning
                 position.addAlarm(Position.ALARM_OVERSPEED);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            double speed = detail.getJsonNumber("spd").doubleValue();
+                            double speed = detDouble(detail, "spd");
                             position.set("alarmSpeed", speed);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double speedLimit = detail.getJsonNumber("lmt").doubleValue();
+                            double speedLimit = detDouble(detail, "lmt");
                             position.set("speedLimit", speedLimit);
                         } catch (Exception ignored) {
                         }
@@ -1167,7 +1168,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "28":
                 // Voltage alarm with 7 sub-types
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     LOGGER.info("Voltage alarm detail: " + detail.toString());
                     int subType = -1;
                     Integer dt = parseJsonInt(detail, "dt");
@@ -1220,7 +1221,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract voltage value if available
                     if (detail.containsKey("val")) {
                         try {
-                            double voltage = detail.getJsonNumber("val").doubleValue();
+                            double voltage = detDouble(detail, "val");
                             position.set(Position.KEY_POWER, voltage);
                         } catch (Exception ignored) {
                         }
@@ -1231,12 +1232,12 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "29":
                 // People counting
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
 
                     // Extract people count
                     if (detail.containsKey("cnt")) {
                         try {
-                            int peopleCount = detail.getInt("cnt");
+                            int peopleCount = detInt(detail, "cnt");
                             position.set("peopleCount", peopleCount);
                         } catch (Exception ignored) {
                         }
@@ -1245,7 +1246,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract channel if available
                     if (detail.containsKey("ch")) {
                         try {
-                            position.set("channel", detail.getInt("ch"));
+                            position.set("channel", detInt(detail, "ch"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -1257,10 +1258,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Idle alarm
                 position.set(Position.KEY_ALARM, "idle");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("dur")) {
                         try {
-                            int idleDuration = detail.getInt("dur");
+                            int idleDuration = detInt(detail, "dur");
                             position.set("idleDuration", idleDuration);
                         } catch (Exception ignored) {
                         }
@@ -1285,10 +1286,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // IO output alarm
                 position.set(Position.KEY_ALARM, "ioOutput");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("ch")) {
                         try {
-                            int channel = detail.getInt("ch");
+                            int channel = detInt(detail, "ch");
                             position.set("outputChannel", channel);
                             position.set(Position.PREFIX_IO + channel, true);
                         } catch (Exception ignored) {
@@ -1297,7 +1298,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract output state if available
                     if (detail.containsKey("st")) {
                         try {
-                            int state = detail.getInt("st");
+                            int state = detInt(detail, "st");
                             position.set("outputState", state);
                         } catch (Exception ignored) {
                         }
@@ -1315,10 +1316,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Free wheeling (coasting/neutral gear)
                 position.set(Position.KEY_ALARM, "freeWheeling");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("dur")) {
                         try {
-                            int duration = detail.getInt("dur");
+                            int duration = detInt(detail, "dur");
                             position.set("freeWheelingDuration", duration);
                         } catch (Exception ignored) {
                         }
@@ -1330,17 +1331,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // RPM exceeds (engine speed over limit)
                 position.set(Position.KEY_ALARM, Position.ALARM_HIGH_RPM);
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("rpm")) {
                         try {
-                            int rpm = detail.getInt("rpm");
+                            int rpm = detInt(detail, "rpm");
                             position.set(Position.KEY_RPM, rpm);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            int rpmLimit = detail.getInt("lmt");
+                            int rpmLimit = detInt(detail, "lmt");
                             position.set("rpmLimit", rpmLimit);
                         } catch (Exception ignored) {
                         }
@@ -1365,10 +1366,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Load alarm
                 position.set(Position.KEY_ALARM, "loadAlarm");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("val")) {
                         try {
-                            double loadValue = detail.getJsonNumber("val").doubleValue();
+                            double loadValue = detDouble(detail, "val");
                             position.set("loadValue", loadValue);
                         } catch (Exception ignored) {
                         }
@@ -1403,17 +1404,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.addAlarm(Position.ALARM_OVERSPEED);
                 position.set("trackerEvent", "overspeed");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            double speed = detail.getJsonNumber("spd").doubleValue();
+                            double speed = detDouble(detail, "spd");
                             position.set("alarmSpeed", speed);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double limit = detail.getJsonNumber("lmt").doubleValue();
+                            double limit = detDouble(detail, "lmt");
                             position.set("speedLimit", limit);
                         } catch (Exception ignored) {
                         }
@@ -1426,17 +1427,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 position.addAlarm(Position.ALARM_OVERSPEED);
                 position.set("trackerEvent", "excessive_overspeed");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("spd")) {
                         try {
-                            double speed = detail.getJsonNumber("spd").doubleValue();
+                            double speed = detDouble(detail, "spd");
                             position.set("alarmSpeed", speed);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("lmt")) {
                         try {
-                            double limit = detail.getJsonNumber("lmt").doubleValue();
+                            double limit = detDouble(detail, "lmt");
                             position.set("speedLimit", limit);
                         } catch (Exception ignored) {
                         }
@@ -1471,10 +1472,10 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Satellite Modem status
                 position.set(Position.KEY_ALARM, "satelliteModemStatus");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("st")) {
                         try {
-                            int status = detail.getInt("st");
+                            int status = detInt(detail, "st");
                             position.set("satelliteModemStatus", status);
                         } catch (Exception ignored) {
                         }
@@ -1486,7 +1487,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Trip notification
                 position.set(Position.KEY_STATUS, "TRIP_NOTIFICATION");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("tid")) {
                         try {
                             position.set("tripId", detail.getString("tid"));
@@ -1500,17 +1501,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                 // Tire pressure alarm
                 position.set(Position.KEY_ALARM, "tirePressure");
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     if (detail.containsKey("tp")) {
                         try {
-                            int tire = detail.getInt("tp");
+                            int tire = detInt(detail, "tp");
                             position.set("tirePosition", tire);
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("val")) {
                         try {
-                            position.set("tirePressureValue", detail.getJsonNumber("val").doubleValue());
+                            position.set("tirePressureValue", detDouble(detail, "val"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -1530,17 +1531,17 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                                 position.set("diskNumber" + (i + 1), detail.getString("num"));
                             }
                             if (detail.containsKey("ow")) {
-                                position.set("diskOverwrite" + (i + 1), detail.getInt("ow"));
+                                position.set("diskOverwrite" + (i + 1), detInt(detail, "ow"));
                             }
                             if (detail.containsKey("st")) {
-                                position.set("diskStatus" + (i + 1), detail.getInt("st"));
+                                position.set("diskStatus" + (i + 1), detInt(detail, "st"));
                             }
                         }
                     } else if (detValue.getValueType() == JsonValue.ValueType.OBJECT) {
-                        JsonObject detail = json.getJsonObject("det");
+                        JsonObject detail = detObject(json);
                         if (detail.containsKey("st")) {
                             try {
-                                position.set("diskStatus", detail.getInt("st"));
+                                position.set("diskStatus", detInt(detail, "st"));
                             } catch (Exception ignored) {
                             }
                         }
@@ -1552,7 +1553,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
             case "30":
                 // Advanced Driver Assistance System alarms
                 if (json.containsKey("det")) {
-                    JsonObject detail = json.getJsonObject("det");
+                    JsonObject detail = detObject(json);
                     int subType = -1;
                     Integer tp = parseJsonInt(detail, "tp");
                     if (tp != null) {
@@ -1562,7 +1563,7 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract common ADAS data
                     if (detail.containsKey("spd")) {
                         try {
-                            position.set("adasSpeed", detail.getJsonNumber("spd").doubleValue());
+                            position.set("adasSpeed", detDouble(detail, "spd"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -1739,13 +1740,13 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
                     // Extract additional ADAS/DMS data
                     if (detail.containsKey("lvl")) {
                         try {
-                            position.set("alarmLevel", detail.getInt("lvl"));
+                            position.set("alarmLevel", detInt(detail, "lvl"));
                         } catch (Exception ignored) {
                         }
                     }
                     if (detail.containsKey("dst")) {
                         try {
-                            position.set("objectDistance", detail.getJsonNumber("dst").doubleValue());
+                            position.set("objectDistance", detDouble(detail, "dst"));
                         } catch (Exception ignored) {
                         }
                     }
@@ -2234,6 +2235,55 @@ public class HowenProtocolDecoder extends BaseProtocolDecoder {
         byte[] payload = Arrays.copyOf(content, content.length + 1);
         payload[payload.length - 1] = 0;
         return payload;
+    }
+
+    /**
+     * Returns the alarm "det" object, or an empty object when "det" is missing or not a JSON object,
+     * so a malformed detail never aborts decoding of the whole alarm message.
+     */
+    private static JsonObject detObject(JsonObject json) {
+        JsonValue value = json.get("det");
+        if (value != null && value.getValueType() == JsonValue.ValueType.OBJECT) {
+            return value.asJsonObject();
+        }
+        return JsonValue.EMPTY_JSON_OBJECT;
+    }
+
+    /**
+     * Reads an integer from the alarm detail. Howen devices send detail values as JSON strings
+     * (e.g. {"st":"0","ch":"19"}), which {@link JsonObject#getInt(String)} rejects with a
+     * ClassCastException. Accepts both numbers and numeric strings; throws when the key is missing
+     * or not numeric so callers' existing try/catch keeps skipping the attribute.
+     */
+    static int detInt(JsonObject detail, String key) {
+        JsonValue value = detail.get(key);
+        if (value instanceof JsonNumber number) {
+            return number.intValue();
+        }
+        if (value instanceof JsonString string) {
+            String text = string.getString().trim();
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException e) {
+                return (int) Double.parseDouble(text);
+            }
+        }
+        throw new IllegalArgumentException("Missing or non-numeric detail value: " + key);
+    }
+
+    /**
+     * Reads a decimal from the alarm detail, accepting both JSON numbers and numeric strings.
+     * Throws when the key is missing or not numeric (see {@link #detInt(JsonObject, String)}).
+     */
+    static double detDouble(JsonObject detail, String key) {
+        JsonValue value = detail.get(key);
+        if (value instanceof JsonNumber number) {
+            return number.doubleValue();
+        }
+        if (value instanceof JsonString string) {
+            return Double.parseDouble(string.getString().trim());
+        }
+        throw new IllegalArgumentException("Missing or non-numeric detail value: " + key);
     }
 
     private Integer parseJsonInt(JsonObject source, String key) {
